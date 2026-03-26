@@ -79,42 +79,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderCalendar() {
-        // Render a 5-week calendar grid (35 days) with correct date mapping
-        const year = currentDate.getUTCFullYear();
-        const month = currentDate.getUTCMonth(); // 0-11
-        // Determine grid start: Sunday of the week that contains the 1st of the month (UTC)
-        const firstOfMonth = new Date(Date.UTC(year, month, 1));
-        const startDow = firstOfMonth.getUTCDay(); // 0 Sun
-        const gridStart = new Date(Date.UTC(year, month, 1 - startDow));
+        // Render a 5-week calendar grid (35 days) with correct date mapping (local time)
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth(); // 0-11
+        // Determine grid start: Sunday of the week that contains the 1st of the month (local time)
+        const firstOfMonthLocal = new Date(year, month, 1);
+        const startDowLocal = firstOfMonthLocal.getDay(); // 0 Sun
+        const gridStart = new Date(year, month, 1 - startDowLocal);
+        // console.log('year', year)
+        // console.log('month', month);
+        // console.log('firstOfMonthLocal', firstOfMonthLocal);
+        // console.log('startDowLocal', startDowLocal);
+        // console.log('gridStart', gridStart);
 
         // Build 5 weeks = 35 cells
         calendarGrid.innerHTML = '';
         const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-        const displayMonth = monthNames[gridStart.getUTCMonth()];
-        const displayYear = gridStart.getUTCFullYear();
+        // Header should reflect the currently viewed month (not the gridStart month to avoid drift when the grid
+        // includes days from the previous/next month)
+        let displayMonth = monthNames[month];
+        let displayYear = year;
+        // console.log(`Rendering calendar for ${displayMonth} ${displayYear} starting on ${gridStart.toISOString().slice(0,10)}`);
         currentMonthEl.textContent = `${displayMonth} ${displayYear}`;
 
         for (let i = 0; i < 35; i++) {
             const t = gridStart.getTime() + i * 86400000;
             const d = new Date(t);
-            const dateStr = d.toISOString().slice(0, 10);
-            const dow = d.getUTCDay();
-            const isCurrentMonth = d.getUTCMonth() === month;
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            const dow = d.getDay();
+            const isCurrentMonth = d.getMonth() === month;
             const dayEl = document.createElement('div');
             dayEl.className = 'calendar-day' + (isCurrentMonth ? '' : ' other-month');
-            dayEl.innerHTML = `<span class="day-number">${d.getUTCDate()}</span>`;
+            dayEl.innerHTML = `<span class="day-number">${d.getDate()}</span>`;
+            // Persist the date for click handling when selecting days
+            dayEl.dataset.date = dateStr;
             // Mark activities for this date
             const activities = getFilteredActivities(dateStr, dow);
             if (activities.length > 0) {
                 const dots = activities.slice(0, 4).map(act => `<span class="activity-dot" style="background: ${act.color}"></span>`).join('');
                 dayEl.innerHTML += `<div class="day-dots">${dots}</div>`;
             }
-            // Highlight today
+            // Highlight today (local)
             const today = new Date();
-            const todayStr = today.toUTCString().slice(0, 16).replace(',', ''); // approximate safe check
-            if (dateStr === today.toISOString().slice(0,10)) dayEl.classList.add('today');
-
-            dayEl.addEventListener('click', () => selectDay(d.getUTCDate(), dateStr, activities));
+            const todayStrLocal = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+            if (dateStr === todayStrLocal) dayEl.classList.add('today');
+            dayEl.addEventListener('click', () => selectDay(d.getDate(), dateStr, activities));
             calendarGrid.appendChild(dayEl);
         }
     }
@@ -159,24 +168,16 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedDay = { day, dateStr };
 
         document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected'));
-        const days = document.querySelectorAll('.calendar-day:not(.other-month)');
-        const dayIndex = Array.from(days).findIndex(el =>
-            el.querySelector('.day-number')?.textContent == day && !el.classList.contains('other-month')
-        );
-
-        const allDays = document.querySelectorAll('.calendar-day');
-        const today = new Date();
-        const startDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
-        const targetIndex = startDay + day - 1;
-
-        if (targetIndex < allDays.length) {
-            allDays[targetIndex].classList.add('selected');
+        // Highlight the clicked date by selecting the element that has the matching data-date attribute
+        const targetEl = document.querySelector(`.calendar-day[data-date='${dateStr}']`);
+        if (targetEl) {
+            targetEl.classList.add('selected');
         }
 
         const date = new Date(dateStr);
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        selectedDateEl.textContent = date.toLocaleDateString('es-ES', options);
-
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
+        selectedDateEl.textContent = date.toLocaleDateString('es-AR', options);
+        
         if (activities.length === 0) {
             dayActivitiesEl.innerHTML = '<p class="empty-day">No hay actividades reservadas</p>';
         } else {
@@ -315,6 +316,16 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Reserva creada con éxito');
             reservationModal.classList.add('hidden');
             reservationForm.reset();
+            // Auto-refresh bookings and UI to reflect the newly created reservation
+            fetchBookingsFromApi()
+              .then(() => {
+                renderCalendar();
+                populateActivitySelect();
+                populateWorkspaceSelect();
+              })
+              .catch(err => {
+                console.error('Error refreshing bookings after create', err);
+              });
           } else if (result && result.error) {
             alert('Error: ' + result.error);
           } else {

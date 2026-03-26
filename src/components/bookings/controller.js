@@ -6,22 +6,59 @@ class BookingController {
     this.store = new BookingStore();
   }
 
-  // Helper: generate dates between startDate and endDate inclusive, filtered by days (0=Sun..6=Sat) using UTC
+  // Helper: generate dates between startDate and endDate inclusive, filtered by days (0=Sun..6=Sat) using local time
   generateDates(startDate, endDate, days) {
     const s = startDate.split('-').map(n => parseInt(n, 10));
     const e = endDate.split('-').map(n => parseInt(n, 10));
-    const startMs = Date.UTC(s[0], s[1] - 1, s[2]);
-    const endMs = Date.UTC(e[0], e[1] - 1, e[2]);
+    // Start and end as local dates
+    const startLocal = new Date(s[0], s[1] - 1, s[2]);
+    const endLocal = new Date(e[0], e[1] - 1, e[2]);
     const target = new Set(Array.isArray(days) ? days.map(d => Number(d)) : []);
     const dates = [];
-    for (let t = startMs; t <= endMs; t += 86400000) {
-      const dt = new Date(t);
-      const dow = dt.getUTCDay();
+    for (let d = new Date(startLocal); d <= endLocal; d.setDate(d.getDate() + 1)) {
+      const dow = d.getDay();
       if (target.size === 0 || target.has(dow)) {
-        dates.push(dt.toISOString().slice(0, 10));
+        const dateLocal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        dates.push(dateLocal);
       }
     }
     return dates;
+  }
+
+  // Given a booking eb, generate all dates (YYYY-MM-DD) for its range
+  _expandBookingDates(eb) {
+    const dates = [];
+    let ebDates = [];
+    if (eb.startDate && eb.endDate) {
+      let cur = new Date(eb.startDate);
+      const end = new Date(eb.endDate);
+      while (cur <= end) {
+        const ds = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+        ebDates.push(ds);
+        cur.setDate(cur.getDate() + 1);
+      }
+    } else if (eb.date) {
+      ebDates.push(eb.date);
+    }
+    // apply days restriction if present
+    const desiredDays = Array.isArray(eb.days) ? eb.days : [];
+    for (const ds of ebDates) {
+      const d = new Date(ds); // local date
+      const dow = d.getDay();
+      if (desiredDays.length === 0 || desiredDays.includes(dow)) dates.push(ds);
+    }
+    return dates;
+  }
+
+  // Helpers for UTC date arithmetic to avoid timezone offsets
+  _dateUTC(dateStr) {
+    // returns a Date in UTC for YYYY-MM-DD
+    const parts = dateStr.split('-').map(n => parseInt(n, 10));
+    return new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
+  }
+  _dowUTC(dateStr) {
+    const d = this._dateUTC(dateStr);
+    return d.getUTCDay();
   }
 
   // List bookings with optional filters
@@ -98,39 +135,49 @@ class BookingController {
         return res.status(400).json({ error: 'startTime must be earlier than endTime' });
       }
 
-      // Recurrence: compute all dates in [startDate, endDate] that match selected days
-      const selectedDays = new Set(days.map(d => Number(d)));
+      // Recurrence: compute all dates in [startDate, endDate] that match selected days using local date arithmetic
       const dateList = [];
-      // Use UTC-based iteration to avoid timezone drift
       const s = startDate.split('-').map(n => parseInt(n, 10)); // [Y, M, D]
       const e = endDate.split('-').map(n => parseInt(n, 10));
-      let cur = Date.UTC(s[0], s[1]-1, s[2]);
-      const endD = Date.UTC(e[0], e[1]-1, e[2]);
-      while (cur <= endD) {
-        const d = new Date(cur);
-        const dow = d.getDay();
-        // dow is 0 (Sun) .. 6 (Sat), align with days values
-        if (selectedDays.has(dow)) {
-          dateList.push(d.toISOString().slice(0,10));
+      let curLocal = new Date(s[0], s[1]-1, s[2]);
+      const endLocal = new Date(e[0], e[1]-1, e[2]);
+      const newDaysSet = new Set(days.map(d => Number(d)));
+      while (curLocal <= endLocal) {
+        const dow = curLocal.getDay();
+        if (newDaysSet.size === 0 || newDaysSet.has(dow)) {
+          const ds = `${curLocal.getFullYear()}-${String(curLocal.getMonth()+1).padStart(2, '0')}-${String(curLocal.getDate()).padStart(2, '0')}`;
+          dateList.push(ds);
         }
-        cur += 86400000;
+        curLocal.setDate(curLocal.getDate() + 1);
       }
 
-      // Check conflicts against existing bookings for the workspace across dates
+      // Check conflicts against existing bookings for the workspace across dates (per date logic)
       const existingList = await this.store.findAll();
-      for (const dateStr of dateList) {
-        // find existing bookings for this date range crossing; legacy field handling: exact date or range
-        const listForDate = existingList.filter(b => b.workspaceId === workspaceId && (
-          (b.startDate && b.endDate && dateStr >= b.startDate && dateStr <= b.endDate) ||
-          (b.date === dateStr)
-        ));
-        for (const eb of listForDate) {
-          const eStart = eb.startTime;
-          const eEnd = eb.endTime;
-          if (startTime < eEnd && endTime > eStart) {
-            return res.status(409).json({ error: 'La reserva solapa con otra reserva para este workspace en una fecha del rango' });
+      let conflictReason = null;
+      for (const eb of existingList.filter(b => b.workspaceId === workspaceId)) {
+        // expand eb dates
+        const ebDates = this._expandBookingDates(eb);
+        const ebDays = Array.isArray(eb.days) ? eb.days : [];
+        const ebDaysSet = new Set(ebDays);
+        for (const dateStr of dateList) {
+          if (!ebDates.includes(dateStr)) continue;
+          // check dow match with eb.days
+          const dow = this._dowUTC(dateStr);
+          if (ebDaysSet.size > 0 && !ebDaysSet.has(dow)) continue;
+          // time overlap check for this date
+          const newStart = new Date(dateStr + 'T' + startTime + ':00Z');
+          const newEnd = new Date(dateStr + 'T' + endTime + ':00Z');
+          const es = new Date(dateStr + 'T' + eb.startTime + ':00Z');
+          const ee = new Date(dateStr + 'T' + eb.endTime + ':00Z');
+          if (newStart < ee && newEnd > es) {
+            conflictReason = `Solape con reserva existente ${eb._id || eb.id} en fecha ${dateStr}`;
+            break;
           }
         }
+        if (conflictReason) break;
+      }
+      if (conflictReason) {
+        return res.status(409).json({ error: conflictReason });
       }
       console.log('color', req.body.color);
       // Create a booking entry with recurrence window (single entry that represents the range)
