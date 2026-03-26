@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResClassroom - Reserva de Espacios</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="icon" href="/assets/caba_escudo.png" type="image/png">
+    <meta name="theme-color" content="#0F172A">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <img src="/assets/caba_escudo.png" alt="ResClassroom" class="logo">
+            <span class="brand-name">ResClassroom</span>
+        </div>
+        <div class="navbar-user">
+            <span class="user-name" id="userName">Invitado</span>
+            <button class="btn-login" id="btnLogin">Iniciar Sesión</button>
+        </div>
+    </nav>
+
+    <main class="dashboard">
+        <aside class="sidebar">
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="workspaceSelect">Espacio</label>
+                    <select id="workspaceSelect">
+                        <option value="">Todos los espacios</option>
+                        <option value="aula-1">Aula 101</option>
+                        <option value="aula-2">Aula 202</option>
+                        <option value="taller-1">Taller de Mecánica</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="activitySelect">Actividad</label>
+                    <select id="activitySelect">
+                        <option value="">Todas las actividades</option>
+                        <option value="clase-programacion">Clase de Programación</option>
+                        <option value="taller-ingles">Taller de Inglés</option>
+                        <option value="reunion">Reunión</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="dayFilter">Día de la semana</label>
+                    <select id="dayFilter">
+                        <option value="">Todos los días</option>
+                        <option value="1">Lunes</option>
+                        <option value="2">Martes</option>
+                        <option value="3">Miércoles</option>
+                        <option value="4">Jueves</option>
+                        <option value="5">Viernes</option>
+                        <option value="6">Sábado</option>
+                        <option value="0">Domingo</option>
+                    </select>
+                </div>
+            </div>
+        </aside>
+
+        <section class="calendar-section">
+            <div class="calendar-header">
+                <button class="btn-nav" id="prevMonth">&lt;</button>
+                <h2 id="currentMonth">Marzo 2026</h2>
+                <button class="btn-nav" id="nextMonth">&gt;</button>
+            </div>
+            <div class="calendar-weekdays">
+                <span>Dom</span>
+                <span>Lun</span>
+                <span>Mar</span>
+                <span>Mié</span>
+                <span>Jue</span>
+                <span>Vie</span>
+                <span>Sáb</span>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </section>
+
+        <aside class="day-details">
+            <h3>Detalles del día</h3>
+            <div id="selectedDate" class="selected-date"></div>
+            <div id="dayActivities" class="activities-list"></div>
+        </aside>
+    </main>
+
+    <div id="reservationModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="modal-close" id="closeModal">&times;</span>
+            <h2>Nueva Reserva</h2>
+            <form id="reservationForm">
+                <div class="form-group">
+                    <label for="resWorkspace">Espacio</label>
+                    <select id="resWorkspace" required>
+                        <option value="">Seleccionar espacio</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="resActivity">Actividad</label>
+                    <input type="text" id="resActivity" placeholder="Nombre de la actividad" required>
+                </div>
+                <div class="form-group">
+                    <label for="resColor">Color</label>
+                    <input type="color" id="resColor" value="#3B82F6">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="resStartDate">Fecha inicio</label>
+                        <input type="date" id="resStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="resEndDate">Fecha fin</label>
+                        <input type="date" id="resEndDate" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="resStartTime">Hora inicio</label>
+                        <input type="time" id="resStartTime" value="19:00" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="resEndTime">Hora fin</label>
+                        <input type="time" id="resEndTime" value="22:00" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Repetir los días</label>
+                    <div class="days-selector">
+                        <label class="day-checkbox">
+                            <input type="checkbox" name="days" value="0">
+                            <span>Dom</span>
+                        </label>
+                        <label class="day-checkbox">
+                            <input type="checkbox" name="days" value="1">
+                            <span>Lun</span>
+                        </label>
+                        <label class="day-checkbox">
+                            <input type="checkbox" name="days" value="2">
+                            <span>Mar</span>
+                        </label>
+                        <label class="day-checkbox">
+                            <input type="checkbox" name="days" value="3">
+                            <span>Mié</span>
+                        </label>
+                        <label class="day-checkbox">
+                            <input type="checkbox" name="days" value="4">
+                            <span>Jue</span>
+                        </label>
+                        <label class="day-checkbox">
+                            <input type="checkbox" name="days" value="5">
+                            <span>Vie</span>
+                        </label>
+                        <label class="day-checkbox">
+                            <input type="checkbox" name="days" value="6">
+                            <span>Sáb</span>
+                        </label>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">Crear Reserva</button>
+            </form>
+        </div>
+    </div>
+
+    <button class="btn-float" id="btnNewReservation">+</button>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
