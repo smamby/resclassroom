@@ -6,6 +6,24 @@ class BookingController {
     this.store = new BookingStore();
   }
 
+  // Helper: generate dates between startDate and endDate inclusive, filtered by days (0=Sun..6=Sat) using UTC
+  generateDates(startDate, endDate, days) {
+    const s = startDate.split('-').map(n => parseInt(n, 10));
+    const e = endDate.split('-').map(n => parseInt(n, 10));
+    const startMs = Date.UTC(s[0], s[1] - 1, s[2]);
+    const endMs = Date.UTC(e[0], e[1] - 1, e[2]);
+    const target = new Set(Array.isArray(days) ? days.map(d => Number(d)) : []);
+    const dates = [];
+    for (let t = startMs; t <= endMs; t += 86400000) {
+      const dt = new Date(t);
+      const dow = dt.getUTCDay();
+      if (target.size === 0 || target.has(dow)) {
+        dates.push(dt.toISOString().slice(0, 10));
+      }
+    }
+    return dates;
+  }
+
   // List bookings with optional filters
   async getAllBookings(req, res) {
     try {
@@ -83,13 +101,19 @@ class BookingController {
       // Recurrence: compute all dates in [startDate, endDate] that match selected days
       const selectedDays = new Set(days.map(d => Number(d)));
       const dateList = [];
-      let cur = new Date(startDate);
-      const endD = new Date(endDate);
+      // Use UTC-based iteration to avoid timezone drift
+      const s = startDate.split('-').map(n => parseInt(n, 10)); // [Y, M, D]
+      const e = endDate.split('-').map(n => parseInt(n, 10));
+      let cur = Date.UTC(s[0], s[1]-1, s[2]);
+      const endD = Date.UTC(e[0], e[1]-1, e[2]);
       while (cur <= endD) {
-        const iso = cur.toISOString().slice(0,10);
-        const dow = cur.getDay();
-        if (selectedDays.has(dow)) dateList.push(iso);
-        cur.setDate(cur.getDate() + 1);
+        const d = new Date(cur);
+        const dow = d.getDay();
+        // dow is 0 (Sun) .. 6 (Sat), align with days values
+        if (selectedDays.has(dow)) {
+          dateList.push(d.toISOString().slice(0,10));
+        }
+        cur += 86400000;
       }
 
       // Check conflicts against existing bookings for the workspace across dates

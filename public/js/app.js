@@ -44,18 +44,20 @@ document.addEventListener('DOMContentLoaded', () => {
           const wsName = workspacesById[wsId] || b.workspaceName || wsId;
           const start = b.startDate || b.date;
           const end = b.endDate || b.date;
-          // Expand recurrence into per-date slots if a range is provided
+          // Expand recurrence into per-date slots using UTC-based arithmetic to avoid timezone drift
           let slots = [];
           if (start && end) {
-            let cur = new Date(start);
-            const endDate = new Date(end);
+            const s = start.split('-').map(n => parseInt(n, 10)); // [Y, M, D]
+            const e = end.split('-').map(n => parseInt(n, 10));
+            const base = Date.UTC(s[0], s[1]-1, s[2]);
+            const endBase = Date.UTC(e[0], e[1]-1, e[2]);
             const allowedDays = Array.isArray(b.days) ? b.days : [];
-            while (cur <= endDate) {
-              const dow = cur.getDay();
+            for (let t = base; t <= endBase; t += 86400000) {
+              const d = new Date(t);
+              const dow = d.getUTCDay();
               if (allowedDays.length === 0 || allowedDays.includes(dow)) {
-                slots.push({ date: cur.toISOString().slice(0,10), startTime: b.startTime, endTime: b.endTime, color: b.color });
+                slots.push({ date: d.toISOString().slice(0,10), startTime: b.startTime, endTime: b.endTime, color: b.color });
               }
-              cur.setDate(cur.getDate() + 1);
             }
           }
           if (slots.length === 0) {
@@ -77,66 +79,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderCalendar() {
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
+        // Render a 5-week calendar grid (35 days) with correct date mapping
+        const year = currentDate.getUTCFullYear();
+        const month = currentDate.getUTCMonth(); // 0-11
+        // Determine grid start: Sunday of the week that contains the 1st of the month (UTC)
+        const firstOfMonth = new Date(Date.UTC(year, month, 1));
+        const startDow = firstOfMonth.getUTCDay(); // 0 Sun
+        const gridStart = new Date(Date.UTC(year, month, 1 - startDow));
 
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-        const startDay = firstDay.getDay();
-        const daysInMonth = lastDay.getDate();
-
-        const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-        currentMonthEl.textContent = `${monthNames[month]} ${year}`;
-
+        // Build 5 weeks = 35 cells
         calendarGrid.innerHTML = '';
+        const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        const displayMonth = monthNames[gridStart.getUTCMonth()];
+        const displayYear = gridStart.getUTCFullYear();
+        currentMonthEl.textContent = `${displayMonth} ${displayYear}`;
 
-        const prevMonth = new Date(year, month, 0);
-        for (let i = startDay - 1; i >= 0; i--) {
+        for (let i = 0; i < 35; i++) {
+            const t = gridStart.getTime() + i * 86400000;
+            const d = new Date(t);
+            const dateStr = d.toISOString().slice(0, 10);
+            const dow = d.getUTCDay();
+            const isCurrentMonth = d.getUTCMonth() === month;
             const dayEl = document.createElement('div');
-            dayEl.className = 'calendar-day other-month';
-            dayEl.innerHTML = `<span class="day-number">${prevMonth.getDate() - i}</span>`;
-            calendarGrid.appendChild(dayEl);
-        }
-
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const dayOfWeek = new Date(year, month, day).getDay();
-
-            const dayEl = document.createElement('div');
-            dayEl.className = 'calendar-day';
-
-            if (dateStr === todayStr) {
-                dayEl.classList.add('today');
+            dayEl.className = 'calendar-day' + (isCurrentMonth ? '' : ' other-month');
+            dayEl.innerHTML = `<span class="day-number">${d.getUTCDate()}</span>`;
+            // Mark activities for this date
+            const activities = getFilteredActivities(dateStr, dow);
+            if (activities.length > 0) {
+                const dots = activities.slice(0, 4).map(act => `<span class="activity-dot" style="background: ${act.color}"></span>`).join('');
+                dayEl.innerHTML += `<div class="day-dots">${dots}</div>`;
             }
+            // Highlight today
+            const today = new Date();
+            const todayStr = today.toUTCString().slice(0, 16).replace(',', ''); // approximate safe check
+            if (dateStr === today.toISOString().slice(0,10)) dayEl.classList.add('today');
 
-        const dayActivities = getFilteredActivities(dateStr, dayOfWeek);
-
-            if (dayActivities.length > 0) {
-                const dots = dayActivities.slice(0, 4).map(act =>
-                    `<span class="activity-dot" style="background: ${act.color}"></span>`
-                ).join('');
-                dayEl.innerHTML = `
-                    <span class="day-number">${day}</span>
-                    <div class="day-dots">${dots}</div>
-                `;
-            } else {
-                dayEl.innerHTML = `<span class="day-number">${day}</span>`;
-            }
-
-            dayEl.addEventListener('click', () => selectDay(day, dateStr, dayActivities));
-            calendarGrid.appendChild(dayEl);
-        }
-
-        const totalCells = startDay + daysInMonth;
-        const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-        for (let i = 1; i <= remainingCells; i++) {
-            const dayEl = document.createElement('div');
-            dayEl.className = 'calendar-day other-month';
-            dayEl.innerHTML = `<span class="day-number">${i}</span>`;
+            dayEl.addEventListener('click', () => selectDay(d.getUTCDate(), dateStr, activities));
             calendarGrid.appendChild(dayEl);
         }
     }
