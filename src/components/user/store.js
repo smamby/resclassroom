@@ -5,25 +5,44 @@ class UserStore {
     const db = getDb();
     const collection = db.collection('users');
     const result = await collection.insertOne(data);
-    return { ...data, _id: result.insertedId };
+    const sanitized = {
+      _id: result.insertedId,
+      id: data.id,
+      name: data.name,
+      surname: data.surname,
+      email: data.email,
+      role: data.role,
+      createdAt: data.createdAt
+    };
+    return sanitized;
   }
 
   async findById(id) {
     const db = getDb();
     const collection = db.collection('users');
-    return await collection.findOne({ $or: [{ _id: id }, { id: id }] });
+    const user = await collection.findOne({ $or: [{ _id: id }, { id: id }] });
+    if (!user) return null;
+    const { passwordHash, _id, ...rest } = user;
+    return { _id, ...rest };
   }
 
   async findByEmail(email) {
     const db = getDb();
     const collection = db.collection('users');
-    return await collection.findOne({ email: email.toLowerCase() });
+    const user = await collection.findOne({ email: email.toLowerCase() });
+    if (!user) return null;
+    const { passwordHash, _id, ...rest } = user;
+    return { _id, ...rest };
   }
 
   async findAll() {
     const db = getDb();
     const collection = db.collection('users');
-    return await collection.find({}).toArray();
+    const users = await collection.find({}).toArray();
+    return users.map(u => {
+      const { passwordHash, _id, ...rest } = u;
+      return { _id, ...rest };
+    });
   }
 
   async update(id, updates) {
@@ -34,6 +53,10 @@ class UserStore {
       { $set: updates },
       { returnDocument: 'after' }
     );
+    if (result && result.value) {
+      const { passwordHash, _id, ...rest } = result.value;
+      return { _id, ...rest };
+    }
     return result;
   }
 

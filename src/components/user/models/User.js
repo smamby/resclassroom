@@ -34,6 +34,12 @@ class User {
     this.role = data.role || ROLES.VISITOR;
     this.createdAt = data.createdAt || new Date();
   }
+
+  toJSON() {
+    const { passwordHash, ...rest } = this;
+    // If passwordHash exists on the instance, exclude it from JSON reps
+    return rest;
+  }
 }
 
 User.ROLES = ROLES;

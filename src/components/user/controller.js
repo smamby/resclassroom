@@ -6,6 +6,27 @@ class UserController {
     this.store = new UserStore();
   }
 
+  async promoteUser(req, res) {
+    try {
+      const requester = req.user;
+      if (!requester || requester.role !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      const { id } = req.params;
+      const { role } = req.body; // expected 'guest' or 'instructor'
+      const allowed = ['guest', 'instructor'];
+      const newRole = allowed.includes(role) ? role : 'guest';
+      const updated = await this.store.update(id, { role: newRole, updatedAt: new Date() });
+      if (updated) {
+        res.status(200).json(updated.value || updated);
+      } else {
+        res.status(404).json({ error: 'User not found' });
+      }
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
   async createUser(req, res) {
     try {
       const userData = {
