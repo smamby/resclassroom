@@ -25,14 +25,15 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await fetch('/workspaces', { credentials: 'include' });
         const data = await res.json();
-        workspacesFromApi = data.map(ws => ({ id: ws._id || ws.id, name: ws.name }));
+        // Prefer the business id field first when available, fallback to _id
+        workspacesFromApi = data.map(ws => ({ id: ws.id || ws._id, name: ws.name }));
         // Build a lookup map by id
         workspacesFromApi.forEach(ws => { workspacesById[ws.id] = ws.name; });
       } catch (e) {
         workspacesFromApi = [];
       }
     }
-    
+
     // Load bookings from API and map to UI shape (slots-based)
     async function fetchBookingsFromApi() {
       try {
@@ -41,14 +42,33 @@ document.addEventListener('DOMContentLoaded', () => {
         bookings = data.map(b => {
           const wsId = b.workspaceId;
           const wsName = workspacesById[wsId] || b.workspaceName || wsId;
+          const start = b.startDate || b.date;
+          const end = b.endDate || b.date;
+          // Expand recurrence into per-date slots if a range is provided
+          let slots = [];
+          if (start && end) {
+            let cur = new Date(start);
+            const endDate = new Date(end);
+            const allowedDays = Array.isArray(b.days) ? b.days : [];
+            while (cur <= endDate) {
+              const dow = cur.getDay();
+              if (allowedDays.length === 0 || allowedDays.includes(dow)) {
+                slots.push({ date: cur.toISOString().slice(0,10), startTime: b.startTime, endTime: b.endTime, color: b.color });
+              }
+              cur.setDate(cur.getDate() + 1);
+            }
+          }
+          if (slots.length === 0) {
+            slots = [{ date: start, startTime: b.startTime, endTime: b.endTime }];
+          }
           return {
             id: b._id || b.id,
             workspace: wsId,
             workspaceName: wsName,
-            color: '#999',
+            color: b.color || '#999',
             actividad: b.actividad,
             activity: b.actividad,
-            slots: [{ date: b.date, startTime: b.startTime, endTime: b.endTime }]
+            slots: slots
           };
         });
       } catch (e) {
@@ -59,18 +79,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCalendar() {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
-        
+
         const firstDay = new Date(year, month, 1);
         const lastDay = new Date(year, month + 1, 0);
         const startDay = firstDay.getDay();
         const daysInMonth = lastDay.getDate();
-        
+
         const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
         currentMonthEl.textContent = `${monthNames[month]} ${year}`;
-        
+
         calendarGrid.innerHTML = '';
-        
+
         const prevMonth = new Date(year, month, 0);
         for (let i = startDay - 1; i >= 0; i--) {
             const dayEl = document.createElement('div');
@@ -78,25 +98,25 @@ document.addEventListener('DOMContentLoaded', () => {
             dayEl.innerHTML = `<span class="day-number">${prevMonth.getDate() - i}</span>`;
             calendarGrid.appendChild(dayEl);
         }
-        
+
         const today = new Date();
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        
+
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const dayOfWeek = new Date(year, month, day).getDay();
-            
+
             const dayEl = document.createElement('div');
             dayEl.className = 'calendar-day';
-            
+
             if (dateStr === todayStr) {
                 dayEl.classList.add('today');
             }
-            
+
         const dayActivities = getFilteredActivities(dateStr, dayOfWeek);
-            
+
             if (dayActivities.length > 0) {
-                const dots = dayActivities.slice(0, 4).map(act => 
+                const dots = dayActivities.slice(0, 4).map(act =>
                     `<span class="activity-dot" style="background: ${act.color}"></span>`
                 ).join('');
                 dayEl.innerHTML = `
@@ -106,11 +126,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 dayEl.innerHTML = `<span class="day-number">${day}</span>`;
             }
-            
+
             dayEl.addEventListener('click', () => selectDay(day, dateStr, dayActivities));
             calendarGrid.appendChild(dayEl);
         }
-        
+
         const totalCells = startDay + daysInMonth;
         const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
         for (let i = 1; i <= remainingCells; i++) {
@@ -125,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const workspaceFilter = workspaceSelect.value;
         const activityFilter = activitySelect.value;
         const dayOfWeekFilter = dayFilter.value;
-        
+
         // Map bookings into the same structure used by the UI rendering logic
         let filtered = bookings.flatMap(b =>
             b.slots
@@ -135,49 +155,50 @@ document.addEventListener('DOMContentLoaded', () => {
                     slot: slot
                 }))
         );
-        
+
         if (workspaceFilter) {
             filtered = filtered.filter(act => act.workspace === workspaceFilter);
         }
-        
+
         if (activityFilter) {
             // activityFilter stores the activity id/name
             filtered = filtered.filter(act => act.actividad === activityFilter || act.activity === activityFilter);
         }
-        
+
         if (dayOfWeekFilter !== '') {
             filtered = filtered.filter(act => dayOfWeek.toString() === dayOfWeekFilter);
         }
-        
-        // Normalize to expected keys in the template
+
+        // Normalize to expected keys in the template; ensure color is carried to top level for dots
         return filtered.map(item => ({
             ...item,
-            activity: item.actividad
+            activity: item.actividad,
+            color: item.color || (item.slot && item.slot.color) || '#999'
         }));
     }
 
     function selectDay(day, dateStr, activities) {
         selectedDay = { day, dateStr };
-        
+
         document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected'));
         const days = document.querySelectorAll('.calendar-day:not(.other-month)');
-        const dayIndex = Array.from(days).findIndex(el => 
+        const dayIndex = Array.from(days).findIndex(el =>
             el.querySelector('.day-number')?.textContent == day && !el.classList.contains('other-month')
         );
-        
+
         const allDays = document.querySelectorAll('.calendar-day');
         const today = new Date();
         const startDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
         const targetIndex = startDay + day - 1;
-        
+
         if (targetIndex < allDays.length) {
             allDays[targetIndex].classList.add('selected');
         }
-        
+
         const date = new Date(dateStr);
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         selectedDateEl.textContent = date.toLocaleDateString('es-ES', options);
-        
+
         if (activities.length === 0) {
             dayActivitiesEl.innerHTML = '<p class="empty-day">No hay actividades reservadas</p>';
         } else {
@@ -198,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 uniqueActivities.set(b.actividad, { id: b.actividad, activity: b.actividad, color: b.color });
             }
         });
-        
+
         activitySelect.innerHTML = '<option value="">Todas las actividades</option>';
         uniqueActivities.forEach(act => {
             const option = document.createElement('option');
@@ -251,6 +272,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('resStartDate').value = today;
         document.getElementById('resEndDate').value = today;
+
+        // Ensure a color input exists for choosing reservation color
+        let colorInput = document.getElementById('resColor');
+        if (!colorInput) {
+          colorInput = document.createElement('input');
+          colorInput.id = 'resColor';
+          colorInput.type = 'color';
+          colorInput.value = '#ff0000'; // default rojo
+          // Try to append near the date/time controls if possible
+          reservationForm.appendChild(colorInput);
+        }
     });
 
     closeModalBtn.addEventListener('click', () => {
@@ -265,22 +297,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     reservationForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        
+
         const selectedDays = Array.from(document.querySelectorAll('input[name="days"]:checked'))
             .map(cb => parseInt(cb.value));
-        
+
         if (selectedDays.length === 0) {
             alert('Selecciona al menos un día de la semana');
             return;
         }
-        
-        // Build payload for API (single date based on resStartDate as a simplified approach)
-        const dateValue = document.getElementById('resStartDate')?.value || new Date().toISOString().split('T')[0];
+
+        // Build payload for API with recurrence (startDate..endDate) and days of week
+        const startDate = document.getElementById('resStartDate').value || new Date().toISOString().split('T')[0];
+        const endDate = document.getElementById('resEndDate').value || startDate;
+        const daysSelected = Array.from(document.querySelectorAll('input[name="days"]:checked')).map(cb => parseInt(cb.value));
         const payload = {
             workspaceId: document.getElementById('resWorkspace').value,
-            date: dateValue,
+            startDate,
+            endDate,
             startTime: document.getElementById('resStartTime').value,
             endTime: document.getElementById('resEndTime').value,
+            days: daysSelected,
+            color: document.getElementById('resColor')?.value,
             actividad: document.getElementById('resActivity').value,
             notes: ''
         };
@@ -310,9 +347,103 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    document.getElementById('btnLogin').addEventListener('click', () => {
-        alert('Login con JWT vendrá pronto');
+    document.getElementById('btnLogin').addEventListener('click', async () => {
+        const email = prompt('Email:')?.trim();
+        if (!email) return;
+        const password = prompt('Password:')?.trim();
+        if (!password) return;
+        try {
+            const res = await fetch('/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ email, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert('Login exitoso');
+                localStorage.setItem('loggedIn', 'true');
+                location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Credenciales inválidas'));
+            }
+        } catch (err) {
+            alert('Error de login: ' + err);
+        }
     });
+
+    // Registrar nuevo usuario: muestra un modal simple de registro
+    function createRegisterModal() {
+      const modal = document.createElement('div');
+      modal.id = 'registerModal';
+      modal.style.position = 'fixed';
+      modal.style.top = '0'; modal.style.left = '0'; modal.style.right = '0'; modal.style.bottom = '0';
+      modal.style.background = 'rgba(0,0,0,0.5)';
+      modal.style.display = 'flex'; modal.style.alignItems = 'center'; modal.style.justifyContent = 'center';
+      modal.style.zIndex = '1000';
+      modal.innerHTML = `
+        <div style="background:white;padding:20px;border-radius:8px;min-width:300px;">
+          <h3>Registrar usuario</h3>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <input id="regName" placeholder="Nombre" />
+            <input id="regSurname" placeholder="Apellido" />
+            <input id="regEmail" placeholder="Email" />
+            <input id="regPassword" placeholder="Password" type="password" />
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end;">
+            <button id="regCancel">Cancelar</button>
+            <button id="regSubmit">Registrar</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+
+      document.getElementById('regCancel').addEventListener('click', () => {
+        modal.remove();
+      });
+      document.getElementById('regSubmit').addEventListener('click', async () => {
+        const name = document.getElementById('regName').value;
+        const surname = document.getElementById('regSurname').value;
+        const email = document.getElementById('regEmail').value;
+        const password = document.getElementById('regPassword').value;
+        const payload = { name, surname, email, password };
+        try {
+          const res = await fetch('/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (res.ok) {
+            alert('Registro exitoso');
+            modal.remove();
+            location.reload();
+          } else {
+            alert('Error: ' + (data.error || 'No se pudo registrar'));
+          }
+        } catch (err) {
+          alert('Error al registrar: ' + err);
+        }
+      });
+    }
+
+    window.showRegisterModal = createRegisterModal;
+    // Ensure a Registrarse button exists in the navbar-user; if not, create it
+    function ensureRegisterButton() {
+      let regBtn = document.getElementById('btnRegister');
+      if (!regBtn) {
+        regBtn = document.createElement('button');
+        regBtn.id = 'btnRegister';
+        regBtn.textContent = 'Registrarse';
+        // Try to append to a navbar-user container if present
+        const navbarUser = document.getElementsByClassName('navbar-user')[0] || document.body;
+        navbarUser.appendChild(regBtn);
+      }
+      regBtn.addEventListener('click', () => {
+        createRegisterModal();
+      });
+    }
+    ensureRegisterButton();
 
     // Load workspaces first to populate the creation filters, then bookings
     fetchWorkspacesFromApi()

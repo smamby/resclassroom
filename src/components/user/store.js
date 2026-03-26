@@ -29,10 +29,8 @@ class UserStore {
   async findByEmail(email) {
     const db = getDb();
     const collection = db.collection('users');
-    const user = await collection.findOne({ email: email.toLowerCase() });
-    if (!user) return null;
-    const { passwordHash, _id, ...rest } = user;
-    return { _id, ...rest };
+    // Return the full user document so login can access passwordHash for verification
+    return await collection.findOne({ email: email.toLowerCase() });
   }
 
   async findAll() {

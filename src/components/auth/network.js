@@ -13,5 +13,6 @@ function getController() {
 
 router.post('/register', (req, res) => getController().register(req, res));
 router.post('/login', (req, res) => getController().login(req, res));
+router.post('/logout', (req, res) => getController().logout(req, res));
 
 module.exports = router;

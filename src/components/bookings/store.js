@@ -4,7 +4,10 @@ class BookingStore {
   async create(data) {
     const db = getDb();
     const collection = db.collection('bookings');
+    // Debug: log what we are attempting to insert
+    console.log('[BOOKINGS] Inserting booking:', data);
     const result = await collection.insertOne(data);
+    console.log('[BOOKINGS] Insert result:', result);
     return { ...data, _id: result.insertedId };
   }
 

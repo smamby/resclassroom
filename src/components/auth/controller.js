@@ -7,11 +7,21 @@ const { sign } = jwt;
 const SECRET = process.env.JWT_SECRET || 'change-me-please';
 
 class AuthController {
-  constructor() {
-    this.store = new UserStore();
+    constructor() {
+      this.store = new UserStore();
+    }
+
+  async logout(req, res) {
+    try {
+      // Clear the token cookie on logout
+      res.clearCookie('tokenAuth');
+      res.status(200).json({ message: 'Logout successful' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   }
 
-  async register(req, res) {
+    async register(req, res) {
     try {
       const { name, surname, email, password } = req.body;
       if (!name || !surname || !email || !password) {
@@ -49,6 +59,8 @@ class AuthController {
         return res.status(400).json({ error: 'Missing credentials' });
       }
       const user = await this.store.findByEmail(email);
+      // Debug: log whether passwordHash exists for debugging login failures
+      console.log('[AUTH] LOGIN attempt for', email, 'passwordHashPresent=', Boolean(user && user.passwordHash));
       if (!user) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
@@ -58,7 +70,17 @@ class AuthController {
       }
       const token = sign({ userId: user._id || user.id, role: user.role }, SECRET, { expiresIn: '1h' });
       res.cookie('tokenAuth', token, { httpOnly: true, sameSite: 'lax' });
-      res.status(200).json({ user });
+      // Sanitize user object for the response to avoid leaking passwordHash
+      const sanitizedUser = {
+        _id: user._id,
+        id: user.id,
+        name: user.name,
+        surname: user.surname,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt
+      };
+      res.status(200).json({ user: sanitizedUser });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

@@ -32,6 +32,8 @@ class User {
     this.surname = data.surname.trim();
     this.email = data.email.trim().toLowerCase();
     this.role = data.role || ROLES.VISITOR;
+    // Password hash (for login) - store if provided, and hide in JSON output
+    this.passwordHash = data.passwordHash;
     this.createdAt = data.createdAt || new Date();
   }
 
