@@ -9,55 +9,23 @@
     <meta name="theme-color" content="#0F172A">
 </head>
 <body>
+    
     <nav class="navbar">
         <div class="navbar-brand">
             <img src="/assets/caba_escudo.png" alt="ResClassroom" class="logo">
             <span class="brand-name">ResClassroom</span>
         </div>
-        <div class="navbar-user">
-            <span class="user-name" id="userName">Invitado</span>
+        <div class="navbar-user" id="authArea">
+            <span class="user-name" id="userName" style="display:none;">Invitado</span>
             <button class="btn-login" id="btnLogin">Iniciar Sesión</button>
+            <button class="btn-secondary" id="btnRegister" style="display:none; margin-left:0.5rem;">Registrarse</button>
+            <button class="btn-logout" id="btnLogout" style="display:none; margin-left:0.5rem;">Cerrar Sesión</button>
+            <div id="avatar" class="avatar" hidden aria-label="Avatar de usuario" title="Usuario"></div>
         </div>
     </nav>
 
     <main class="dashboard">
-        <aside class="sidebar">
-            <div class="filters">
-                <div class="filter-group">
-                    <label for="workspaceSelect">Espacio</label>
-                    <select id="workspaceSelect">
-                        <option value="">Todos los espacios</option>
-                        <option value="aula-1">Aula 101</option>
-                        <option value="aula-2">Aula 202</option>
-                        <option value="taller-1">Taller de Mecánica</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="activitySelect">Actividad</label>
-                    <select id="activitySelect">
-                        <option value="">Todas las actividades</option>
-                        <option value="clase-programacion">Clase de Programación</option>
-                        <option value="taller-ingles">Taller de Inglés</option>
-                        <option value="reunion">Reunión</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="dayFilter">Día de la semana</label>
-                    <select id="dayFilter">
-                        <option value="">Todos los días</option>
-                        <option value="1">Lunes</option>
-                        <option value="2">Martes</option>
-                        <option value="3">Miércoles</option>
-                        <option value="4">Jueves</option>
-                        <option value="5">Viernes</option>
-                        <option value="6">Sábado</option>
-                        <option value="0">Domingo</option>
-                    </select>
-                </div>
-            </div>
-        </aside>
-
-        <section class="calendar-section">
+        <section class="calendar-section" id="calendarSection">
             <div class="calendar-header">
                 <button class="btn-nav" id="prevMonth">&lt;</button>
                 <h2 id="currentMonth">Marzo 2026</h2>
@@ -74,12 +42,41 @@
             </div>
             <div class="calendar-grid" id="calendarGrid"></div>
         </section>
+        <div class="asides-wrapper">
+            <aside class="sidebar">
+                <div class="filters">
+                    <div class="filter-group">
+                        <label for="workspaceSelect">Espacio</label>
+                        <select id="workspaceSelect">
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="activitySelect">Actividad</label>
+                        <select id="activitySelect">
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="dayFilter">Día de la semana</label>
+                        <select id="dayFilter">
+                            <option value="">Todos los días</option>
+                            <option value="1">Lunes</option>
+                            <option value="2">Martes</option>
+                            <option value="3">Miércoles</option>
+                            <option value="4">Jueves</option>
+                            <option value="5">Viernes</option>
+                            <option value="6">Sábado</option>
+                            <option value="0">Domingo</option>
+                        </select>
+                    </div>
+                </div>
+            </aside>
 
-        <aside class="day-details">
-            <h3>Detalles del día</h3>
-            <div id="selectedDate" class="selected-date"></div>
-            <div id="dayActivities" class="activities-list"></div>
-        </aside>
+            <section class="day-details" style="margin-top:0.5rem;">
+                <h3>Detalles del día</h3>
+                <div id="selectedDate" class="selected-date"></div>
+                <div id="dayActivities" class="activities-list"></div>
+            </section>
+        </div>
     </main>
 
     <div id="reservationModal" class="modal hidden">

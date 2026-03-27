@@ -5,30 +5,30 @@
     --brand-blue-dark: #1E40AF;
     --brand-blue-light: #60A5FA;
     --brand-blue-pale: #DBEAFE;
-    
+
     --bg-primary: #0F172A;
     --bg-secondary: #1E293B;
     --bg-card: #334155;
     --bg-elevated: #475569;
-    
+
     --text-primary: #F8FAFC;
     --text-secondary: #94A3B8;
     --text-muted: #64748B;
-    
+
     --border-subtle: rgba(255,255,255,0.08);
     --border-accent: rgba(59, 130, 246, 0.4);
-    
+
     --accent-glow: rgba(59, 130, 246, 0.25);
     --card-shadow: 0 8px 32px rgba(0,0,0,0.4);
-    
+
     --radius-sm: 6px;
     --radius-md: 12px;
     --radius-lg: 20px;
     --radius-full: 50px;
-    
+
     --font-display: 'Space Grotesk', sans-serif;
     --font-body: 'Outfit', sans-serif;
-    
+
     --transition-fast: 0.15s ease;
     --transition-smooth: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -45,6 +45,8 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
+    max-width: 1200px; /* Ensure body does not exceed 1200px */
+    margin: 0 auto;   /* Center content on wide viewports */
     overflow-x: hidden;
 }
 
@@ -55,7 +57,7 @@ body::before {
     left: 0;
     width: 100%;
     height: 100%;
-    background: 
+    background:
         radial-gradient(ellipse 80% 50% at 20% -10%, var(--accent-glow), transparent),
         radial-gradient(ellipse 60% 40% at 80% 110%, rgba(30, 64, 175, 0.3), transparent);
     pointer-events: none;
@@ -183,6 +185,57 @@ body::before {
 .btn-login:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 25px rgba(59, 130, 246, 0.4);
+}
+
+/* Secondary action (Registrarse) - bold, distinct color to contrast with dark UI */
+.btn-secondary {
+    padding: 0.65rem 1.15rem;
+    background: linear-gradient(135deg, #3c518d 0%, #619af5 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--radius-full);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    box-shadow: 0 4px 14px rgba(59,130,246,0.35);
+}
+
+.btn-secondary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(59,130,246,0.5);
+}
+
+.btn-logout {
+    padding: 0.65rem 1.15rem;
+    background: linear-gradient(135deg, #ae3550 0%, #c36f6f 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--radius-full);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    box-shadow: 0 4px 14px rgba(225, 29, 72, 0.4);
+}
+.btn-logout:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(225, 29, 72, 0.5);
+}
+
+/* Avatar in navbar (shown only when logged in) */
+.avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 30% 30%, #4B9CFB 0%, #1F2A44 60%);
+    box-shadow: 0 4px 14px rgba(0,0,0,.35);
+    color: white;
+    margin-left: 0.5rem;
+    cursor: default;
 }
 
 .btn-login:hover::before {
@@ -355,6 +408,75 @@ body::before {
     gap: 6px;
 }
 
+/* Prevent calendar cells from shrinking on wide desktops and enable responsive layout */
+@media (min-width: 1200px) {
+  .calendar-grid {
+    grid-template-columns: repeat(7, minmax(120px, 1fr));
+  }
+  /* Cap overall calendar width to keep aside widths aligned */
+  .calendar-section {
+    width: 1100px;
+    margin: 0 auto;
+  }
+  .asides-wrapper {
+    width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  /* Center the calendar and asides in the middle column on very wide screens */
+  .calendar-section { grid-column: 2; }
+  .asides-wrapper { grid-column: 2; grid-row: 2; }
+}
+
+/* Responsive: stack calendar full width on mid screens and place side panels underneath, side-by-side */
+/* Adjustments for mid-size screens (900px - 1199px) and smaller (<=899px) handled separately below */
+
+@media (max-width: 899px) {
+  .dashboard {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+    gap: 1rem;
+  }
+  .calendar-section { order: 1; width: 100%; }
+  .sidebar { order: 2; width: 100%; }
+  .day-details { order: 3; width: 100%; }
+}
+
+@media (min-width: 900px) and (max-width: 1199px) {
+  .dashboard {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .calendar-section { grid-column: 2; grid-row: 1; width: 100%; }
+  .asides-wrapper {
+    grid-column: 1; grid-row: 1 / span 2;
+    display: grid; grid-template-rows: auto auto; width: 100%; max-width: 300px;
+  }
+  .sidebar { width: 100%; }
+  .day-details { width: 100%; }
+  .calendar-grid { grid-template-columns: repeat(7, minmax(60px, 1fr)); }
+}
+
+/* Large desktops: cap layout to 1200px max and fix 300px aside + 900px calendar */
+@media (min-width: 1200px) {
+  .dashboard {
+    display: grid;
+    grid-template-columns: 1fr 3fr;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .calendar-section { grid-column: 2; grid-row: 1; width: 100%; }
+  .asides-wrapper { grid-column: 1; grid-row: 1; display: grid; grid-template-columns: 1fr; align-self: flex-start; width: 300px; }
+  .calendar-grid { grid-template-columns: repeat(7, minmax(80px, 1fr)); }
+}
+
 .calendar-day {
     aspect-ratio: 1;
     display: flex;
@@ -367,7 +489,7 @@ body::before {
     border-radius: var(--radius-md);
     cursor: pointer;
     transition: all var(--transition-smooth);
-    min-height: 90px;
+    min-height: 60px;
     position: relative;
     overflow: hidden;
 }
@@ -795,45 +917,69 @@ body::before {
 .day-checkbox:hover span {
     border-color: var(--brand-blue);
 }
+@media (min-width: 1400px) {
+    #btnNewReservation {
+        right: calc(50% - 550px);
+    }
+}
 
 @media (max-width: 1400px) {
     .dashboard {
-        grid-template-columns: 260px 1fr 300px;
+        grid-template-columns: 1fr 3fr;
+    }
+    .asides-wrapper {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+        gap: 1rem;
+        height: auto;
+        align-self: flex-start;
     }
 }
 
 @media (max-width: 1200px) {
     .dashboard {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto auto;
+        grid-template-columns: 2fr 5fr;
+        grid-template-rows: 1fr;
         gap: 1rem;
         padding: 1.25rem;
     }
-    
+    .asides-wrapper {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+        gap: 1rem;
+        height: auto;
+        align-self: flex-start;
+    }
+
     .sidebar {
         display: block;
         order: 2;
     }
-    
+
     .calendar-section {
         order: 1;
     }
-    
+
     .day-details {
         order: 3;
     }
 }
 
 @media (max-width: 600px) {
+    .dashboard {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
     .calendar-grid {
         gap: 2px;
     }
-    
+
     .calendar-day {
         min-height: 40px;
         padding: 0.25rem;
     }
-    
+
     .day-number {
         font-size: 0.7rem;
     }
@@ -843,132 +989,154 @@ body::before {
     .calendar-grid {
         gap: 1px;
     }
-    
+
     .calendar-day {
         min-height: 36px;
     }
-    
+
     .day-number {
         font-size: 0.65rem;
     }
-    
+
     .calendar-weekdays span {
         font-size: 0.55rem;
     }
 }
 
-@media (max-width: 768px) {
+/* Mobile stacking: calendar on top, then filters/day details */
+@media (max-width: 899px) {
+  .dashboard {
+    display: grid;
+    grid-template-columns: 2fr 5fr;
+    grid-template-rows: 1fr;
+  }
+  .calendar-section { order: 1; width: 100%; }
+  .asides-wrapper { display: flex; flex-direction: column-reverse;}
+  .day-details { order: 2; width: 100%; }
+  .sidebar { order: 3; width: 100%; }
+}
+
+@media (max-width: 868px) {
+    .dashboard {
+        display: flex;
+        flex-direction: column-reverse;
+    }
+    .asides-wrapper {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
     .navbar {
         padding: 0.875rem 1rem;
         flex-wrap: wrap;
         gap: 0.75rem;
     }
-    
+
     .navbar-brand {
         gap: 0.625rem;
     }
-    
+
     .logo {
         height: 32px;
     }
-    
+
     .brand-name {
         font-size: 1.25rem;
     }
-    
+
     .navbar-user {
         gap: 0.75rem;
     }
-    
+
     .user-name {
         font-size: 0.8rem;
         padding: 0.375rem 0.75rem;
     }
-    
+
     .btn-login {
         padding: 0.5rem 1rem;
         font-size: 0.8rem;
     }
-    
+
     .dashboard {
         padding: 0.875rem;
         gap: 0.875rem;
     }
-    
+
     .calendar-section {
         padding: 1rem;
     }
-    
+
     .calendar-header h2 {
         font-size: 1.25rem;
     }
-    
+
     .btn-nav {
         width: 36px;
         height: 36px;
         font-size: 1rem;
     }
-    
+
     .calendar-weekdays span {
         font-size: 0.625rem;
         padding: 0.375rem;
     }
-    
+
     .calendar-grid {
         gap: 3px;
     }
-    
+
     .calendar-day {
         min-height: 50px;
         padding: 0.375rem;
         border-radius: var(--radius-sm);
     }
-    
+
     .day-number {
         font-size: 0.8rem;
     }
-    
+
     .day-activities {
         display: none;
     }
-    
+
     .sidebar {
         padding: 1rem;
     }
-    
+
     .filters h3 {
         font-size: 0.8rem;
     }
-    
+
     .filter-group {
         margin-bottom: 1rem;
     }
-    
+
     .filter-group label {
         font-size: 0.7rem;
     }
-    
+
     .filter-group select {
         padding: 0.625rem 0.75rem;
         font-size: 0.8rem;
     }
-    
+
     .day-details {
         padding: 1rem;
     }
-    
+
     .day-details h3 {
         font-size: 1rem;
     }
-    
+
     .activity-card {
         padding: 0.75rem;
     }
-    
+
     .activity-card h4 {
         font-size: 0.85rem;
     }
-    
+
     .btn-float {
         bottom: 1.25rem;
         right: 1.25rem;
@@ -976,12 +1144,12 @@ body::before {
         height: 52px;
         font-size: 1.5rem;
     }
-    
+
     .modal-content {
         padding: 1.5rem;
         border-radius: var(--radius-md);
     }
-    
+
     .form-row {
         grid-template-columns: 1fr;
     }

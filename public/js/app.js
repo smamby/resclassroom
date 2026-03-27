@@ -78,6 +78,71 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // Auth helpers: determine login state and update UI accordingly
+    async function checkLoginStatus() {
+      try {
+        const res = await fetch('/auth/me', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          const uname = data?.name || data?.username || 'Usuario';
+          // Persist username for UI usage
+          sessionStorage.setItem('username', uname);
+          renderAuthUI(true, uname);
+          return;
+        }
+      } catch (e) {
+        // ignore and fallback to localStorage
+      }
+      const isLogged = localStorage.getItem('loggedIn') === 'true';
+      // Clear stored username if not logged in
+      if (!isLogged) sessionStorage.removeItem('username');
+      renderAuthUI(isLogged, sessionStorage.getItem('username'));//'Usuario');
+    }
+
+    function renderAuthUI(loggedIn, username) {
+      const userNameEl = document.getElementById('userName');
+      const btnLogin = document.getElementById('btnLogin');
+      const btnRegister = document.getElementById('btnRegister');
+      const btnLogout = document.getElementById('btnLogout');
+      const avatar = document.getElementById('avatar');
+
+      // If logged in, prefer the username from sessionStorage if available
+      const nameFromSession = typeof window !== 'undefined' ? sessionStorage.getItem('username') : null;
+      const displayName = nameFromSession || username || '';
+
+      if (loggedIn) {
+        if (userNameEl) {
+          // Show plain text with the user's name, not a button or pill
+          userNameEl.textContent = displayName;
+          userNameEl.style.display = 'inline';
+          userNameEl.style.background = 'transparent';
+          userNameEl.style.border = 'none';
+          userNameEl.style.padding = '0';
+          userNameEl.style.fontWeight = '600';
+          userNameEl.style.color = 'var(--text-primary)';
+        }
+        if (btnLogin) btnLogin.style.display = 'none';
+        if (btnRegister) btnRegister.style.display = 'none';
+        if (btnLogout) btnLogout.style.display = 'inline-block';
+        if (avatar) {
+          avatar.hidden = false;
+          avatar.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+              <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5z"/>
+            </svg>`;
+          avatar.style.display = 'inline-flex';
+        }
+      } else {
+        if (userNameEl) {
+          userNameEl.style.display = 'none';
+        }
+        if (btnLogin) btnLogin.style.display = 'inline-block';
+        if (btnRegister) btnRegister.style.display = 'inline-block';
+        if (btnLogout) btnLogout.style.display = 'none';
+        if (avatar) { avatar.hidden = true; avatar.innerHTML = ''; }
+      }
+    }
+
     function renderCalendar() {
         // Render a 5-week calendar grid (35 days) with correct date mapping (local time)
         const year = currentDate.getFullYear();
@@ -177,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const date = new Date(dateStr);
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
         selectedDateEl.textContent = date.toLocaleDateString('es-AR', options);
-        
+
         if (activities.length === 0) {
             dayActivitiesEl.innerHTML = '<p class="empty-day">No hay actividades reservadas</p>';
         } else {
@@ -351,8 +416,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (res.ok) {
                 alert('Login exitoso');
+                sessionStorage.setItem('username', data.user?.name || 'Usuario');
                 localStorage.setItem('loggedIn', 'true');
-                location.reload();
+                await checkLoginStatus();
             } else {
                 alert('Error: ' + (data.error || 'Credenciales inválidas'));
             }
@@ -361,40 +427,63 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Registrar nuevo usuario: muestra un modal simple de registro
+    // Logout button handling
+    const btnLogoutEl = document.getElementById('btnLogout');
+    if (btnLogoutEl) {
+      btnLogoutEl.addEventListener('click', async () => {
+        try {
+          await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+        } catch (e) {
+          // ignore
+        }
+        localStorage.setItem('loggedIn', 'false');
+        sessionStorage.removeItem('username');
+        await checkLoginStatus();
+      });
+    }
+
+    // Registrar nuevo usuario: modal estilizado coherente
     function createRegisterModal() {
       const modal = document.createElement('div');
       modal.id = 'registerModal';
-      modal.style.position = 'fixed';
-      modal.style.top = '0'; modal.style.left = '0'; modal.style.right = '0'; modal.style.bottom = '0';
-      modal.style.background = 'rgba(0,0,0,0.5)';
-      modal.style.display = 'flex'; modal.style.alignItems = 'center'; modal.style.justifyContent = 'center';
-      modal.style.zIndex = '1000';
+      modal.className = 'modal';
       modal.innerHTML = `
-        <div style="background:white;padding:20px;border-radius:8px;min-width:300px;">
-          <h3>Registrar usuario</h3>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <input id="regName" placeholder="Nombre" />
-            <input id="regSurname" placeholder="Apellido" />
-            <input id="regEmail" placeholder="Email" />
-            <input id="regPassword" placeholder="Password" type="password" />
-          </div>
-          <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end;">
-            <button id="regCancel">Cancelar</button>
-            <button id="regSubmit">Registrar</button>
-          </div>
+        <div class="modal-content">
+          <span class="modal-close" id="registerClose">&times;</span>
+          <h2>Registrar usuario</h2>
+          <form id="registerForm" class="form-group" style="display:flex;flex-direction:column;gap:1rem;">
+            <div class="form-group">
+              <label>Nombre</label>
+              <input id="regName" placeholder="Nombre" required />
+            </div>
+            <div class="form-group">
+              <label>Apellido</label>
+              <input id="regSurname" placeholder="Apellido" required />
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input id="regEmail" placeholder="Email" type="email" required />
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input id="regPassword" placeholder="Password" type="password" required />
+            </div>
+            <button type="submit" class="btn-primary">Registrar</button>
+          </form>
         </div>`;
       document.body.appendChild(modal);
 
-      document.getElementById('regCancel').addEventListener('click', () => {
-        modal.remove();
-      });
-      document.getElementById('regSubmit').addEventListener('click', async () => {
-        const name = document.getElementById('regName').value;
-        const surname = document.getElementById('regSurname').value;
-        const email = document.getElementById('regEmail').value;
-        const password = document.getElementById('regPassword').value;
-        const payload = { name, surname, email, password };
+      // close handlers
+      document.getElementById('registerClose').addEventListener('click', () => modal.remove());
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+      document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+          name: document.getElementById('regName').value,
+          surname: document.getElementById('regSurname').value,
+          email: document.getElementById('regEmail').value,
+          password: document.getElementById('regPassword').value
+        };
         try {
           const res = await fetch('/auth/register', {
             method: 'POST',
@@ -406,7 +495,8 @@ document.addEventListener('DOMContentLoaded', () => {
           if (res.ok) {
             alert('Registro exitoso');
             modal.remove();
-            location.reload();
+            localStorage.setItem('loggedIn', 'true');
+            await checkLoginStatus();
           } else {
             alert('Error: ' + (data.error || 'No se pudo registrar'));
           }
@@ -416,17 +506,18 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
+    // Expose for external triggers
     window.showRegisterModal = createRegisterModal;
-    // Ensure a Registrarse button exists in the navbar-user; if not, create it
+    // Registrar botón en navbar
     function ensureRegisterButton() {
       let regBtn = document.getElementById('btnRegister');
       if (!regBtn) {
         regBtn = document.createElement('button');
         regBtn.id = 'btnRegister';
         regBtn.textContent = 'Registrarse';
-        // Try to append to a navbar-user container if present
-        const navbarUser = document.getElementsByClassName('navbar-user')[0] || document.body;
-        navbarUser.appendChild(regBtn);
+        regBtn.className = 'btn-secondary';
+        // Append at the end of the navbar-user container
+        document.getElementById('authArea').appendChild(regBtn);
       }
       regBtn.addEventListener('click', () => {
         createRegisterModal();
@@ -441,5 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCalendar();
         populateActivitySelect();
         populateWorkspaceSelect();
+        // Determine initial auth state after data loads
+        checkLoginStatus();
       });
 });
