@@ -404,11 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('btnLogin').addEventListener('click', async () => {
-        // const email = prompt('Email:')?.trim();
-        // if (!email) return;
-        // const password = prompt('Password:')?.trim();
-        // if (!password) return;
-
+        // create login modal
         const modal = document.createElement('div');
         modal.id = 'loginModal';
         modal.className = 'modal';
@@ -451,6 +447,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res.ok) {
                 // alert('Login exitoso');
                 sessionStorage.setItem('username', data.user?.name || 'Usuario');
+                sessionStorage.setItem('role', data.user?.role || 'visitor');
+                sessionStorage.setItem('userId', data.user?._id || data.user?.id || '');
+                console.log('Login successful, user:', data.user);
                 modal.remove();
                 localStorage.setItem('loggedIn', 'true');
                 await checkLoginStatus();

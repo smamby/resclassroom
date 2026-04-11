@@ -68,7 +68,7 @@ class AuthController {
       if (!valid) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
-      const token = sign({ userId: user._id || user.id, role: user.role }, SECRET, { expiresIn: '1h' });
+      const token = sign({ userId: user._id || user.id, role: user.role }, SECRET, { expiresIn: '20m' });
       res.cookie('tokenAuth', token, { httpOnly: true, sameSite: 'lax' });
       // Sanitize user object for the response to avoid leaking passwordHash
       const sanitizedUser = {
