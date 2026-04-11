@@ -315,21 +315,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Edit modal handling: open on clicking a per-day card or action buttons
-    // Refined: open modal only when Edit is clicked, and handle Delete similarly
-    dayActivitiesEl.addEventListener('click', async (e) => {
-        console.log('[BOOKING-UI] dayActivitiesEl click target:', e.target);
-        const editBtn = e.target.closest('button.card-action.edit');
+    // Delegation: handle edit/delete via document-level clicks on buttons
+    document.addEventListener('click', async (ev) => {
+        const editBtn = ev.target.closest('.card-action.edit');
         if (editBtn) {
+            ev.preventDefault();
             const card = editBtn.closest('.activity-card');
             const bookingId = card?.dataset?.id;
             if (!bookingId) return;
             try {
                 const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
-                if (!res.ok) {
-                    alert('No se pudo obtener la reserva');
-                    return;
-                }
+                if (!res.ok) return alert('No se pudo obtener la reserva');
                 const booking = await res.json();
                 showEditModal(booking);
             } catch (err) {
@@ -337,8 +333,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-        const deleteBtn = e.target.closest('button.card-action.delete');
+        const deleteBtn = ev.target.closest('.card-action.delete');
         if (deleteBtn) {
+            ev.preventDefault();
             const card = deleteBtn.closest('.activity-card');
             const bookingId = card?.dataset?.id;
             if (!bookingId) return;
@@ -358,7 +355,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-        // ignore clicks outside action buttons
     });
 
     // Attach handlers to action buttons (Edit/Delete) safely (one-time)
