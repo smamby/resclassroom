@@ -266,7 +266,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 : '';
             return `
                 <div class=\"activity-card\" data-id=\"${act.id}\" data-created-by-user-id=\"${act.createdByUserId ?? ''}\" style=\"border-left-color: ${act.color}\">
-                    <div class=\"activity-header\">${act.activity}${btns}</div>
+                    <div class=\"activity-header\">
+                      ${act.activity}
+                      <div class=\"card-actions\" style=\"margin-left:0;\">
+                        ${btns}
+                      </div>
+                    </div>
                     <div class=\"activity-meta\">
                       <span class=\"activity-time\">${act.slot.startTime} - ${act.slot.endTime}</span>
                       <span class=\"activity-workspace\">${act.workspaceName}</span>
