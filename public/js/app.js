@@ -318,6 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Edit modal handling: open on clicking a per-day card or action buttons
     // Refined: open modal only when Edit is clicked, and handle Delete similarly
     dayActivitiesEl.addEventListener('click', async (e) => {
+        console.log('[BOOKING-UI] dayActivitiesEl click target:', e.target);
         const editBtn = e.target.closest('button.card-action.edit');
         if (editBtn) {
             const card = editBtn.closest('.activity-card');
