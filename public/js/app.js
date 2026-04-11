@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
             slots = [{ date: start, startTime: b.startTime, endTime: b.endTime }];
           }
           return {
-            id: b._id || b.id,
+            id: String(b._id || b.id),
             workspace: wsId,
             workspaceName: wsName,
             color: b.color || '#999',
@@ -357,22 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-        // Default: open edit modal for the card if clicking on the card body
-        const card = e.target.closest('.activity-card');
-        if (!card) return;
-        const bookingId = card.dataset.id;
-        if (!bookingId) return;
-        try {
-            const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
-            if (!res.ok) {
-                alert('No se pudo obtener la reserva');
-                return;
-            }
-            const booking = await res.json();
-            showEditModal(booking);
-        } catch (err) {
-            console.error('Error fetching booking for edit', err);
-        }
+    // Clicking outside of the action buttons should not trigger edit/delete.
     });
 
     function showEditModal(booking) {
@@ -380,6 +365,10 @@ document.addEventListener('DOMContentLoaded', () => {
         reservationModal.classList.remove('hidden');
         const header = document.querySelector('#reservationModal .modal-content h2');
         if (header) header.textContent = 'Editar Reserva';
+        // Ensure the submit button reflects edit mode
+        const submitBtn = document.querySelector('#reservationModal .modal-content button[type="submit"]');
+        if (submitBtn) submitBtn.textContent = 'Guardar';
+        console.log('[BOOKING EDIT] loading booking', booking);
         document.getElementById('resWorkspace').value = booking.workspaceId || '';
         document.getElementById('resActivity').value = booking.actividad || '';
         document.getElementById('resColor').value = booking.color || '#3B82F6';
@@ -395,7 +384,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (el) el.checked = true;
             });
         }
-        reservationForm.dataset.editId = booking._id || booking.id || '';
+        const rawId = booking._id || booking.id || '';
+        const editId = typeof rawId === 'object' && rawId !== null && typeof rawId.toString === 'function'
+          ? rawId.toString()
+          : String(rawId);
+        reservationForm.dataset.editId = editId;
+        console.log('[BOOKING EDIT] set editId', editId);
     }
     
     prevMonthBtn.addEventListener('click', () => {

@@ -1,4 +1,5 @@
 const getDb = require('../../db').getDb;
+const { ObjectId } = require('mongodb');
 
 class BookingStore {
   async create(data) {
@@ -14,7 +15,16 @@ class BookingStore {
   async findById(id) {
     const db = getDb();
     const collection = db.collection('bookings');
-    return await collection.findOne({ $or: [{ _id: id }, { id: id }] });
+    // Try to convert to ObjectId if a valid hex string is provided
+    let queryId = id;
+    try {
+      if (ObjectId.isValid(id)) {
+        queryId = new ObjectId(id);
+      }
+    } catch (e) {
+      // ignore and fall back to using the raw id
+    }
+    return await collection.findOne({ $or: [{ _id: queryId }, { id: id }] });
   }
 
   async findAll() {
