@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
               })();
             const btns = canEdit
-                ? `<button class="card-action edit" style="margin-left:8px; background: none; border: none; color: #0d6efd; cursor: pointer;">Edit</button><button class="card-action delete" style="margin-left:6px; background: none; border: none; color: #dc3545; cursor: pointer;">Delete</button>`
+                ? `<button class="card-action edit" style="margin-left:8px; background: none; border: none; color: #0d6efd; cursor: pointer;" onclick="handleEditClick('${act.id}')">Edit</button><button class="card-action delete" style="margin-left:6px; background: none; border: none; color: #dc3545; cursor: pointer;" onclick="handleDeleteClick('${act.id}')">Delete</button>`
                 : '';
             return `
                 <div class="activity-card" data-id="${act.id}" data-created-by-user-id="${act.createdByUserId ?? ''}" style="border-left-color: ${act.color}">
@@ -315,47 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Delegation: handle edit/delete via document-level clicks on buttons
-    document.addEventListener('click', async (ev) => {
-        const editBtn = ev.target.closest('.card-action.edit');
-        if (editBtn) {
-            ev.preventDefault();
-            const card = editBtn.closest('.activity-card');
-            const bookingId = card?.dataset?.id;
-            if (!bookingId) return;
-            try {
-                const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
-                if (!res.ok) return alert('No se pudo obtener la reserva');
-                const booking = await res.json();
-                showEditModal(booking);
-            } catch (err) {
-                console.error('Error fetching booking for edit', err);
-            }
-            return;
-        }
-        const deleteBtn = ev.target.closest('.card-action.delete');
-        if (deleteBtn) {
-            ev.preventDefault();
-            const card = deleteBtn.closest('.activity-card');
-            const bookingId = card?.dataset?.id;
-            if (!bookingId) return;
-            try {
-                const res = await fetch(`/bookings/${bookingId}`, { method: 'DELETE', credentials: 'include' });
-                if (res.ok) {
-                    await fetchBookingsFromApi();
-                    renderCalendar();
-                    populateActivitySelect();
-                    populateWorkspaceSelect();
-                } else {
-                    const err = await res.json();
-                    alert('Error al eliminar: ' + (err?.error || 'desconocido'));
-                }
-            } catch (err) {
-                console.error('Error deleting booking', err);
-            }
-            return;
-        }
-    });
+    // Delegation removed: use inline onclick handlers on buttons instead
 
     // Attach handlers to action buttons (Edit/Delete) safely (one-time)
     function attachCardActionHandlers() {
@@ -434,6 +394,37 @@ document.addEventListener('DOMContentLoaded', () => {
         reservationForm.dataset.editId = editId;
         console.log('[BOOKING EDIT] set editId', editId);
     }
+
+    // Global handlers for inline onclick actions (used by inline onclick in buttons)
+    window.handleEditClick = async function(bookingId) {
+      if (!bookingId) return;
+      try {
+        const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
+        if (!res.ok) { alert('No se pudo obtener la reserva'); return; }
+        const booking = await res.json();
+        showEditModal(booking);
+      } catch (err) {
+        console.error('Error fetching booking for edit (handleEditClick)', err);
+      }
+    };
+    window.handleDeleteClick = async function(bookingId) {
+      if (!bookingId) return;
+      if (!confirm('¿Seguro que quieres eliminar esta reserva?')) return;
+      try {
+        const res = await fetch(`/bookings/${bookingId}`, { method: 'DELETE', credentials: 'include' });
+        if (res.ok) {
+          await fetchBookingsFromApi();
+          renderCalendar();
+          populateActivitySelect();
+          populateWorkspaceSelect();
+        } else {
+          const err = await res.json();
+          alert('Error al eliminar: ' + (err?.error || 'desconocido'));
+        }
+      } catch (err) {
+        console.error('Error deleting booking (handleDeleteClick)', err);
+      }
+    };
 
     prevMonthBtn.addEventListener('click', () => {
         currentDate.setMonth(currentDate.getMonth() - 1);
@@ -655,7 +646,17 @@ document.addEventListener('DOMContentLoaded', () => {
           // ignore
         }
         localStorage.setItem('loggedIn', 'false');
+        // Clear session and UI state
         sessionStorage.removeItem('username');
+        sessionStorage.removeItem('role');
+        sessionStorage.removeItem('userId');
+        // Clear UI cards and details view
+        const dayActivitiesEl = document.getElementById('dayActivities');
+        if (dayActivitiesEl) dayActivitiesEl.innerHTML = '';
+        const selectedDateEl = document.getElementById('selectedDate');
+        if (selectedDateEl) selectedDateEl.textContent = '';
+        const calendarGrid = document.getElementById('calendarGrid');
+        if (calendarGrid) calendarGrid.innerHTML = '';
         await checkLoginStatus();
       });
     }
