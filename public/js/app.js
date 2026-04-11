@@ -357,35 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-        // Clicking outside of the action buttons: add a safe fallback to open edit if user has permission
-        const card = e.target.closest('.activity-card');
-        if (card) {
-          const bookingId = card.dataset.id;
-          if (bookingId) {
-            // Determine if user may edit this booking
-            let canEdit = false;
-            try {
-              const role = (sessionStorage.getItem('role') || 'visitor').toString().toLowerCase();
-              const uid = String(sessionStorage.getItem('userId') || '');
-              if (role === 'admin') canEdit = true;
-              if (role === 'instructor' && String(card.dataset.createdByUserId) === uid) canEdit = true;
-            } catch (err) {
-              canEdit = false;
-            }
-            if (canEdit) {
-              // Fetch and open edit modal
-              fetch(`/bookings/${bookingId}`, { credentials: 'include' })
-                .then(res => {
-                  if (!res.ok) {
-                    throw new Error('Reserva no encontrada');
-                  }
-                  return res.json();
-                })
-                .then(booking => showEditModal(booking))
-                .catch(err => console.error('Fallback edit fetch error', err));
-            }
-          }
-        }
+        // (fallback removed) proceed only via explicit Edit/Delete buttons
     });
 
     function showEditModal(booking) {
