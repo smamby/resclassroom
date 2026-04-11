@@ -252,8 +252,8 @@ document.addEventListener('DOMContentLoaded', () => {
             .map(act => {
               // Determine edit permission for this booking turn
               const canEdit = (function() {
-                const role = sessionStorage.getItem('role') || 'visitor';
-                const uid = sessionStorage.getItem('userId') || '';
+                let role = (sessionStorage.getItem('role') || 'visitor').toString().toLowerCase();
+                const uid = String(sessionStorage.getItem('userId') || '');
                 if (role === 'admin') return true;
                 if (role === 'instructor' && String(act.createdByUserId) === String(uid)) return true;
                 return false;
@@ -357,7 +357,35 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-    // Clicking outside of the action buttons should not trigger edit/delete.
+        // Clicking outside of the action buttons: add a safe fallback to open edit if user has permission
+        const card = e.target.closest('.activity-card');
+        if (card) {
+          const bookingId = card.dataset.id;
+          if (bookingId) {
+            // Determine if user may edit this booking
+            let canEdit = false;
+            try {
+              const role = (sessionStorage.getItem('role') || 'visitor').toString().toLowerCase();
+              const uid = String(sessionStorage.getItem('userId') || '');
+              if (role === 'admin') canEdit = true;
+              if (role === 'instructor' && String(card.dataset.createdByUserId) === uid) canEdit = true;
+            } catch (err) {
+              canEdit = false;
+            }
+            if (canEdit) {
+              // Fetch and open edit modal
+              fetch(`/bookings/${bookingId}`, { credentials: 'include' })
+                .then(res => {
+                  if (!res.ok) {
+                    throw new Error('Reserva no encontrada');
+                  }
+                  return res.json();
+                })
+                .then(booking => showEditModal(booking))
+                .catch(err => console.error('Fallback edit fetch error', err));
+            }
+          }
+        }
     });
 
     function showEditModal(booking) {
@@ -462,9 +490,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify(payload)
-            }).then(res => res.json())
-              .then(result => {
-                if (result && (result._id || result.id)) {
+            }).then(async res => {
+              let result;
+              try { result = await res.json(); } catch (e) { result = null; }
+              if (res.ok && result && (result._id || result.id)) {
                   reservationModal.classList.add('hidden');
                   reservationForm.reset();
                   delete reservationForm.dataset.editId;
@@ -472,14 +501,13 @@ document.addEventListener('DOMContentLoaded', () => {
                   fetchBookingsFromApi()
                     .then(() => { renderCalendar(); populateActivitySelect(); populateWorkspaceSelect(); })
                     .catch(err => console.error('Error refreshing after edit', err));
-                } else if (result && result.error) {
-                  alert('Error: ' + result.error);
                 } else {
-                  alert('Error al guardar la reserva');
+                  const errMsg = (result && result.error) ? result.error : 'No se pudo guardar la reserva (posible problema de permisos)';
+                  alert('Error: ' + errMsg);
                 }
-              }).catch(err => {
-                alert('Error al guardar: ' + (err?.message || err));
-              });
+            }).catch(err => {
+              alert('Error al guardar la reserva: ' + (err?.message || err));
+            });
         } else {
             // Create new booking (existing flow)
             const selectedDays = Array.from(document.querySelectorAll('input[name="days"]:checked'))
@@ -531,11 +559,12 @@ document.addEventListener('DOMContentLoaded', () => {
                   .catch(err => {
                     console.error('Error refreshing bookings after create', err);
                   });
-              } else if (result && result.error) {
-                alert('Error: ' + result.error);
+            } else if (result && result.error) {
+              // Creation errors can be surfaced as a generic message to avoid leaking backend specifics
+              alert('Error al crear la reserva: ' + (result.error || 'Desconocido'));
               } else {
-                alert('Error al crear la reserva');
-              }
+              alert('Error al crear la reserva');
+            }
             }).catch(err => {
               alert('Error al crear: ' + (err?.message || err));
             });
