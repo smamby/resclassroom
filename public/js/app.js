@@ -316,51 +316,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Edit modal handling: open on clicking a per-day card or action buttons
+    // Refined: open modal only when Edit is clicked, and handle Delete similarly
     dayActivitiesEl.addEventListener('click', async (e) => {
-        // If user clicked on action buttons
-        if (e.target.closest('.card-action')) {
-            const actionEl = e.target.closest('.card-action');
-            const action = actionEl.classList.contains('edit') ? 'edit' : (actionEl.classList.contains('delete') ? 'delete' : null);
-            const card = actionEl.closest('.activity-card');
+        const editBtn = e.target.closest('button.card-action.edit');
+        if (editBtn) {
+            const card = editBtn.closest('.activity-card');
             const bookingId = card?.dataset?.id;
-            if (!bookingId || !action) return;
-        if (action === 'edit') {
-            console.log('[BOOKING-UI] Edit button clicked for booking', bookingId);
+            if (!bookingId) return;
             try {
                 const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
-                    if (!res.ok) {
-                        alert('No se pudo obtener la reserva');
-                        return;
-                    }
-                    const booking = await res.json();
-                    showEditModal(booking);
-                } catch (err) {
-                    console.error('Error fetching booking for edit', err);
+                if (!res.ok) {
+                    alert('No se pudo obtener la reserva');
+                    return;
                 }
-            } else if (action === 'delete') {
-                try {
-                    const res = await fetch(`/bookings/${bookingId}`, {
-                        method: 'DELETE',
-                        credentials: 'include'
-                    });
-                    if (res.ok) {
-                        // Refresh view after delete
-                        await fetchBookingsFromApi();
-                        renderCalendar();
-                        populateActivitySelect();
-                        populateWorkspaceSelect();
-                    } else {
-                        const err = await res.json();
-                        alert('Error al eliminar: ' + (err?.error || 'desconocido'));
-                    }
-                } catch (err) {
-                    console.error('Error deleting booking', err);
-                }
+                const booking = await res.json();
+                showEditModal(booking);
+            } catch (err) {
+                console.error('Error fetching booking for edit', err);
             }
             return;
         }
-        // Attach action button handlers after rendering cards
-        attachCardActionHandlers();
+        const deleteBtn = e.target.closest('button.card-action.delete');
+        if (deleteBtn) {
+            const card = deleteBtn.closest('.activity-card');
+            const bookingId = card?.dataset?.id;
+            if (!bookingId) return;
+            try {
+                const res = await fetch(`/bookings/${bookingId}`, { method: 'DELETE', credentials: 'include' });
+                if (res.ok) {
+                    await fetchBookingsFromApi();
+                    renderCalendar();
+                    populateActivitySelect();
+                    populateWorkspaceSelect();
+                } else {
+                    const err = await res.json();
+                    alert('Error al eliminar: ' + (err?.error || 'desconocido'));
+                }
+            } catch (err) {
+                console.error('Error deleting booking', err);
+            }
+            return;
+        }
+        // ignore clicks outside action buttons
     });
 
     // Attach handlers to action buttons (Edit/Delete) safely (one-time)
@@ -440,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reservationForm.dataset.editId = editId;
         console.log('[BOOKING EDIT] set editId', editId);
     }
-    
+
     prevMonthBtn.addEventListener('click', () => {
         currentDate.setMonth(currentDate.getMonth() - 1);
         renderCalendar();
