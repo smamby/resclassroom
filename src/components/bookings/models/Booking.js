@@ -10,7 +10,7 @@ class Booking {
     this.userId = data.userId;
     this.actividad = data.actividad; // activity
     this.color = data.color || '#999'; // color used in calendar
-    this.days = Array.isArray(data.days) ? data.days : [];
+    this.days = Array.isArray(data.days) ? data.days : []; // dias de la semana (0-6) que se repite la actividad
 
     // Optional/auxiliary
     this.notes = data.notes || '';

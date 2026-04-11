@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // If logged in, prefer the username from sessionStorage if available
       const nameFromSession = typeof window !== 'undefined' ? sessionStorage.getItem('username') : null;
-      const displayName = nameFromSession || username || '';
+      const displayName = nameFromSession ? nameFromSession[0].toUpperCase() + nameFromSession.slice(1) : username || 'Usuario';
 
       if (loggedIn) {
         if (userNameEl) {
@@ -246,7 +246,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activities.length === 0) {
             dayActivitiesEl.innerHTML = '<p class="empty-day">No hay actividades reservadas</p>';
         } else {
-            dayActivitiesEl.innerHTML = activities.map(act => `
+            dayActivitiesEl.innerHTML = activities
+            .sort((a, b) => a.slot.startTime.localeCompare(b.slot.startTime))
+            .map(act => `
                 <div class="activity-card" style="border-left-color: ${act.color}">
                     <h4>${act.activity}</h4>
                     <p class="activity-time">${act.slot.startTime} - ${act.slot.endTime}</p>
@@ -402,21 +404,54 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('btnLogin').addEventListener('click', async () => {
-        const email = prompt('Email:')?.trim();
-        if (!email) return;
-        const password = prompt('Password:')?.trim();
-        if (!password) return;
+        // const email = prompt('Email:')?.trim();
+        // if (!email) return;
+        // const password = prompt('Password:')?.trim();
+        // if (!password) return;
+
+        const modal = document.createElement('div');
+        modal.id = 'loginModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+          <div class="modal-content">
+            <span class="modal-close" id="loginClose">&times;</span>
+            <h2>Iniciar sesión</h2>
+            <form id="loginForm" class="form-group" style="display:flex;flex-direction:column;gap:1rem;">
+              <div class="form-group">
+                <label>Email</label>
+                <input id="loginEmail" placeholder="Email" type="email" required />
+              </div>
+              <div class="form-group">
+                <label>Password</label>
+                <input id="loginPassword" placeholder="Password" type="password" required />
+              </div>
+              <button type="submit" class="btn-primary">Iniciar sesión</button>
+            </form>
+          </div>`;
+        document.body.appendChild(modal);
+
+        // close handlers
+        document.getElementById('loginClose').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+        const payload = {
+          email: document.getElementById('loginEmail').value,
+          password: document.getElementById('loginPassword').value
+        };
+
         try {
             const res = await fetch('/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (res.ok) {
-                alert('Login exitoso');
+                // alert('Login exitoso');
                 sessionStorage.setItem('username', data.user?.name || 'Usuario');
+                modal.remove();
                 localStorage.setItem('loggedIn', 'true');
                 await checkLoginStatus();
             } else {
@@ -425,6 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             alert('Error de login: ' + err);
         }
+      });
     });
 
     // Logout button handling
@@ -495,8 +531,8 @@ document.addEventListener('DOMContentLoaded', () => {
           if (res.ok) {
             alert('Registro exitoso');
             modal.remove();
-            localStorage.setItem('loggedIn', 'true');
-            await checkLoginStatus();
+            // localStorage.setItem('loggedIn', 'true');
+            // await checkLoginStatus();
           } else {
             alert('Error: ' + (data.error || 'No se pudo registrar'));
           }
