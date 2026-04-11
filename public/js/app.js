@@ -358,8 +358,55 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-        // (fallback removed) proceed only via explicit Edit/Delete buttons
+        // Attach action button handlers after rendering cards
+        attachCardActionHandlers();
     });
+
+    // Attach handlers to action buttons (Edit/Delete) safely (one-time)
+    function attachCardActionHandlers() {
+      document.querySelectorAll('.activity-card .card-action.edit').forEach(btn => {
+        if (!btn.dataset.listener) {
+          btn.addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            const bookingId = btn.closest('.activity-card')?.dataset?.id;
+            if (!bookingId) return;
+            try {
+              const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
+              if (!res.ok) return alert('No se pudo obtener la reserva');
+              const booking = await res.json();
+              showEditModal(booking);
+            } catch (err) {
+              console.error('Error fetching booking for edit', err);
+            }
+          });
+          btn.dataset.listener = 'true';
+        }
+      });
+      document.querySelectorAll('.activity-card .card-action.delete').forEach(btn => {
+        if (!btn.dataset.listener) {
+          btn.addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            const bookingId = btn.closest('.activity-card')?.dataset?.id;
+            if (!bookingId) return;
+            try {
+              const res = await fetch(`/bookings/${bookingId}`, { method: 'DELETE', credentials: 'include' });
+              if (res.ok) {
+                await fetchBookingsFromApi();
+                renderCalendar();
+                populateActivitySelect();
+                populateWorkspaceSelect();
+              } else {
+                const err = await res.json();
+                alert('Error al eliminar: ' + (err?.error || 'desconocido'));
+              }
+            } catch (err) {
+              console.error('Error deleting booking', err);
+            }
+          });
+          btn.dataset.listener = 'true';
+        }
+      });
+    }
 
     function showEditModal(booking) {
         // Open modal and fill fields with booking data
