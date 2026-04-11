@@ -249,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dayActivitiesEl.innerHTML = activities
             .sort((a, b) => a.slot.startTime.localeCompare(b.slot.startTime))
             .map(act => `
-                <div class="activity-card" style="border-left-color: ${act.color}">
+                <div class="activity-card" data-id="${act.id}" style="border-left-color: ${act.color}">
                     <h4>${act.activity}</h4>
                     <p class="activity-time">${act.slot.startTime} - ${act.slot.endTime}</p>
                     <p class="activity-workspace">${act.workspaceName}</p>
@@ -299,6 +299,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Edit modal handling: open on clicking a per-day card
+    dayActivitiesEl.addEventListener('click', async (e) => {
+        const card = e.target.closest('.activity-card');
+        if (!card) return;
+        const bookingId = card.dataset.id;
+        if (!bookingId) return;
+        try {
+            const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
+            if (!res.ok) {
+                alert('No se pudo obtener la reserva');
+                return;
+            }
+            const booking = await res.json();
+            showEditModal(booking);
+        } catch (err) {
+            console.error('Error fetching booking for edit', err);
+        }
+    });
+
+    function showEditModal(booking) {
+        // Open modal and fill fields with booking data
+        reservationModal.classList.remove('hidden');
+        const header = document.querySelector('#reservationModal .modal-content h2');
+        if (header) header.textContent = 'Editar Reserva';
+        document.getElementById('resWorkspace').value = booking.workspaceId || '';
+        document.getElementById('resActivity').value = booking.actividad || '';
+        document.getElementById('resColor').value = booking.color || '#3B82F6';
+        document.getElementById('resStartDate').value = booking.startDate || '';
+        document.getElementById('resEndDate').value = booking.endDate || '';
+        document.getElementById('resStartTime').value = booking.startTime || '';
+        document.getElementById('resEndTime').value = booking.endTime || '';
+        // set days checkboxes
+        document.querySelectorAll('input[name="days"]').forEach(cb => cb.checked = false);
+        if (Array.isArray(booking.days)) {
+            booking.days.forEach(d => {
+                const el = document.querySelector(`input[name="days"][value="${d}"]`);
+                if (el) el.checked = true;
+            });
+        }
+        reservationForm.dataset.editId = booking._id || booking.id || '';
+    }
+    
     prevMonthBtn.addEventListener('click', () => {
         currentDate.setMonth(currentDate.getMonth() - 1);
         renderCalendar();
@@ -344,63 +386,109 @@ document.addEventListener('DOMContentLoaded', () => {
     reservationForm.addEventListener('submit', (e) => {
         e.preventDefault();
 
-        const selectedDays = Array.from(document.querySelectorAll('input[name="days"]:checked'))
-            .map(cb => parseInt(cb.value));
-
-        if (selectedDays.length === 0) {
-            alert('Selecciona al menos un día de la semana');
-            return;
-        }
-
-        // Build payload for API with recurrence (startDate..endDate) and days of week
-        const startDate = document.getElementById('resStartDate').value || new Date().toISOString().split('T')[0];
-        const endDate = document.getElementById('resEndDate').value || startDate;
-        const daysSelected = Array.from(document.querySelectorAll('input[name="days"]:checked')).map(cb => parseInt(cb.value));
-        const payload = {
-            workspaceId: document.getElementById('resWorkspace').value,
-            startDate,
-            endDate,
-            startTime: document.getElementById('resStartTime').value,
-            endTime: document.getElementById('resEndTime').value,
-            days: daysSelected,
-            color: document.getElementById('resColor')?.value,
-            actividad: document.getElementById('resActivity').value,
-            notes: ''
-        };
-
-        // Prefer using a lightweight API wrapper if available
-        let api = window.BookingsApi || {
-          createBooking: (data) => fetch('/bookings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-            credentials: 'include'
-          }).then(res => res.json())
-        };
-
-        api.createBooking(payload).then(result => {
-          if (result && (result._id || result.insertedId)) {
-            alert('Reserva creada con éxito');
-            reservationModal.classList.add('hidden');
-            reservationForm.reset();
-            // Auto-refresh bookings and UI to reflect the newly created reservation
-            fetchBookingsFromApi()
-              .then(() => {
-                renderCalendar();
-                populateActivitySelect();
-                populateWorkspaceSelect();
-              })
-              .catch(err => {
-                console.error('Error refreshing bookings after create', err);
+        // If we are editing an existing booking, use PUT /bookings/:id
+        if (reservationForm.dataset.editId) {
+            const id = reservationForm.dataset.editId;
+            const selectedDays = Array.from(document.querySelectorAll('input[name="days"]:checked'))
+                .map(cb => parseInt(cb.value));
+            if (selectedDays.length === 0) {
+                alert('Selecciona al menos un día de la semana');
+                return;
+            }
+            const payload = {
+                workspaceId: document.getElementById('resWorkspace').value,
+                startDate: document.getElementById('resStartDate').value,
+                endDate: document.getElementById('resEndDate').value,
+                startTime: document.getElementById('resStartTime').value,
+                endTime: document.getElementById('resEndTime').value,
+                days: selectedDays,
+                color: document.getElementById('resColor')?.value,
+                actividad: document.getElementById('resActivity').value,
+                notes: ''
+            };
+            fetch(`/bookings/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload)
+            }).then(res => res.json())
+              .then(result => {
+                if (result && (result._id || result.id)) {
+                  reservationModal.classList.add('hidden');
+                  reservationForm.reset();
+                  delete reservationForm.dataset.editId;
+                  // Refresh bookings view
+                  fetchBookingsFromApi()
+                    .then(() => { renderCalendar(); populateActivitySelect(); populateWorkspaceSelect(); })
+                    .catch(err => console.error('Error refreshing after edit', err));
+                } else if (result && result.error) {
+                  alert('Error: ' + result.error);
+                } else {
+                  alert('Error al guardar la reserva');
+                }
+              }).catch(err => {
+                alert('Error al guardar: ' + (err?.message || err));
               });
-          } else if (result && result.error) {
-            alert('Error: ' + result.error);
-          } else {
-            alert('Error al crear la reserva');
-          }
-        }).catch(err => {
-          alert('Error al crear la reserva: ' + (err?.message || err));
-        });
+        } else {
+            // Create new booking (existing flow)
+            const selectedDays = Array.from(document.querySelectorAll('input[name="days"]:checked'))
+                .map(cb => parseInt(cb.value));
+
+            if (selectedDays.length === 0) {
+                alert('Selecciona al menos un día de la semana');
+                return;
+            }
+
+            // Build payload for API with recurrence (startDate..endDate) and days of week
+            const startDate = document.getElementById('resStartDate').value || new Date().toISOString().split('T')[0];
+            const endDate = document.getElementById('resEndDate').value || startDate;
+            const daysSelected = Array.from(document.querySelectorAll('input[name="days"]:checked')).map(cb => parseInt(cb.value));
+            const payload = {
+                workspaceId: document.getElementById('resWorkspace').value,
+                startDate,
+                endDate,
+                startTime: document.getElementById('resStartTime').value,
+                endTime: document.getElementById('resEndTime').value,
+                days: daysSelected,
+                color: document.getElementById('resColor')?.value,
+                actividad: document.getElementById('resActivity').value,
+                notes: ''
+            };
+
+            // Prefer using a lightweight API wrapper if available
+            let api = window.BookingsApi || {
+              createBooking: (data) => fetch('/bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+                credentials: 'include'
+              }).then(res => res.json())
+            };
+
+            api.createBooking(payload).then(result => {
+              if (result && (result._id || result.insertedId)) {
+                alert('Reserva creada con éxito');
+                reservationModal.classList.add('hidden');
+                reservationForm.reset();
+                // Auto-refresh bookings and UI to reflect the newly created reservation
+                fetchBookingsFromApi()
+                  .then(() => {
+                    renderCalendar();
+                    populateActivitySelect();
+                    populateWorkspaceSelect();
+                  })
+                  .catch(err => {
+                    console.error('Error refreshing bookings after create', err);
+                  });
+              } else if (result && result.error) {
+                alert('Error: ' + result.error);
+              } else {
+                alert('Error al crear la reserva');
+              }
+            }).catch(err => {
+              alert('Error al crear: ' + (err?.message || err));
+            });
+        }
     });
 
     document.getElementById('btnLogin').addEventListener('click', async () => {

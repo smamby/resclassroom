@@ -222,7 +222,11 @@ class BookingController {
       // Build updates; do not allow changing owner implicitly
       const updates = {
         ...req.body,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        // Audit information for edits
+        modified: true,
+        modifiedAt: new Date(),
+        modifiedByName: user.name || user.username || ''
       };
 
       // If date/startTime/endTime/workspaceId/actividad are being updated, validate solape

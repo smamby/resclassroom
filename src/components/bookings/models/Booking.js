@@ -18,6 +18,12 @@ class Booking {
     this.createdAt = data.createdAt || new Date();
     this.updatedAt = data.updatedAt || new Date();
 
+    // Audit fields for modifications
+    // Whether the record was modified and by whom, and when
+    this.modified = data.modified ?? false;
+    this.modifiedAt = data.modifiedAt || null;
+    this.modifiedByName = data.modifiedByName || null;
+
     // Backward compatible id field
     this.id = data.id || null;
   }
