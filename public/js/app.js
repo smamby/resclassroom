@@ -70,7 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
             color: b.color || '#999',
             actividad: b.actividad,
             activity: b.actividad,
-            slots: slots
+            slots: slots,
+            createdByUserId: b.userId || (b.createdBy && b.createdBy.userId) || null
           };
         });
       } catch (e) {
@@ -248,13 +249,27 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             dayActivitiesEl.innerHTML = activities
             .sort((a, b) => a.slot.startTime.localeCompare(b.slot.startTime))
-            .map(act => `
+            .map(act => {
+              // Determine edit permission for this booking turn
+              const canEdit = (function() {
+                const role = sessionStorage.getItem('role') || 'visitor';
+                const uid = sessionStorage.getItem('userId') || '';
+                if (role === 'admin') return true;
+                if (role === 'instructor' && String(act.createdByUserId) === String(uid)) return true;
+                return false;
+              })();
+              const btns = canEdit
+                ? `<span class="card-action edit" style="margin-left:8px; cursor: pointer; color: #0d6efd;">Edit</span><span class="card-action delete" style="margin-left:6px; cursor: pointer; color: #dc3545;">Delete</span>`
+                : '';
+              return `
                 <div class="activity-card" data-id="${act.id}" style="border-left-color: ${act.color}">
+                    ${btns}
                     <h4>${act.activity}</h4>
                     <p class="activity-time">${act.slot.startTime} - ${act.slot.endTime}</p>
                     <p class="activity-workspace">${act.workspaceName}</p>
                 </div>
-            `).join('');
+              `;
+            }).join('');
         }
     }
 
@@ -299,8 +314,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Edit modal handling: open on clicking a per-day card
+    // Edit modal handling: open on clicking a per-day card or action buttons
     dayActivitiesEl.addEventListener('click', async (e) => {
+        // If user clicked on action buttons
+        if (e.target.closest('.card-action')) {
+            const actionEl = e.target.closest('.card-action');
+            const action = actionEl.classList.contains('edit') ? 'edit' : (actionEl.classList.contains('delete') ? 'delete' : null);
+            const card = actionEl.closest('.activity-card');
+            const bookingId = card?.dataset?.id;
+            if (!bookingId || !action) return;
+            if (action === 'edit') {
+                try {
+                    const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
+                    if (!res.ok) {
+                        alert('No se pudo obtener la reserva');
+                        return;
+                    }
+                    const booking = await res.json();
+                    showEditModal(booking);
+                } catch (err) {
+                    console.error('Error fetching booking for edit', err);
+                }
+            } else if (action === 'delete') {
+                try {
+                    const res = await fetch(`/bookings/${bookingId}`, {
+                        method: 'DELETE',
+                        credentials: 'include'
+                    });
+                    if (res.ok) {
+                        // Refresh view after delete
+                        await fetchBookingsFromApi();
+                        renderCalendar();
+                        populateActivitySelect();
+                        populateWorkspaceSelect();
+                    } else {
+                        const err = await res.json();
+                        alert('Error al eliminar: ' + (err?.error || 'desconocido'));
+                    }
+                } catch (err) {
+                    console.error('Error deleting booking', err);
+                }
+            }
+            return;
+        }
+        // Default: open edit modal for the card if clicking on the card body
         const card = e.target.closest('.activity-card');
         if (!card) return;
         const bookingId = card.dataset.id;
