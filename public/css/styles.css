@@ -338,6 +338,53 @@ body::before {
     overflow-x: auto;
 }
 
+/* Icon button styles for actions within cards */
+.icon-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+.icon-btn:hover {
+  color: var(--text-primary);
+  transform: scale(1.15);
+}
+
+.activity-card {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  border-left: 6px solid transparent;
+  border-radius: var(--radius-md);
+  background: rgba(2,6,23,0.2);
+}
+.activity-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.activity-title {
+  font-weight: 600;
+}
+.activity-meta {
+  display: flex;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+.activity-time {
+  color: var(--text-secondary);
+}
+.activity-workspace {
+  color: var(--text-secondary);
+}
+
 @keyframes fadeInUp {
     from {
         opacity: 0;
@@ -642,7 +689,7 @@ body::before {
     transition: width var(--transition-smooth);
 }
 
-.activity-card:hover {
+/* .activity-card:hover {
     transform: translateX(4px);
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
@@ -650,7 +697,7 @@ body::before {
 .activity-card:hover::before {
     width: 100%;
     opacity: 0.05;
-}
+} */
 
 .activity-card h4 {
     font-size: 0.9rem;

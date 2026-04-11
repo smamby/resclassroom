@@ -36,8 +36,13 @@ class BookingStore {
   async update(id, updates) {
     const db = getDb();
     const collection = db.collection('bookings');
+    // Normalize id to ObjectId when possible for _id matching
+    let queryId = id;
+    if (ObjectId.isValid(id)) {
+      queryId = new ObjectId(id);
+    }
     const result = await collection.findOneAndUpdate(
-      { $or: [{ _id: id }, { id: id }] },
+      { $or: [{ _id: queryId }, { id: id }] },
       { $set: updates },
       { returnDocument: 'after' }
     );
@@ -47,7 +52,12 @@ class BookingStore {
   async delete(id) {
     const db = getDb();
     const collection = db.collection('bookings');
-    const result = await collection.deleteOne({ $or: [{ _id: id }, { id: id }] });
+    // Normalize id to ObjectId for _id matching
+    let queryId = id;
+    if (ObjectId.isValid(id)) {
+      queryId = new ObjectId(id);
+    }
+    const result = await collection.deleteOne({ $or: [{ _id: queryId }, { id: id }] });
     return result.deletedCount > 0;
   }
 

@@ -259,15 +259,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (role === 'instructor' && String(act.createdByUserId) === String(uid)) return true;
                 return false;
               })();
+            const editIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L9 9l3.75 3.75 7-7z\"/></svg>`;
+            const deleteIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M3 6h18v2H3V6zm2 3h14l-1 12H6L5 9zm3-5h2l1-1h3l1 1h2v2H7V4z\"/></svg>`;
             const btns = canEdit
-                ? `<button class="card-action edit" style="margin-left:8px; background: none; border: none; color: #0d6efd; cursor: pointer;" onclick="handleEditClick('${act.id}')">Edit</button><button class="card-action delete" style="margin-left:6px; background: none; border: none; color: #dc3545; cursor: pointer;" onclick="handleDeleteClick('${act.id}')">Delete</button>`
+                ? ` <button class=\"icon-btn edit\" onclick=\"handleEditClick('${act.id}')\" aria-label=\"Editar\" title=\"Editar\" style=\"border:0;background:transparent;padding:0;margin-left:6px;cursor:pointer;display:inline-flex;align-items:center;\">${editIcon}</button><button class=\"icon-btn delete\" onclick=\"handleDeleteClick('${act.id}')\" aria-label=\"Eliminar\" title=\"Eliminar\" style=\"border:0;background:transparent;padding:0;margin-left:6px;cursor:pointer;display:inline-flex;align-items:center;\">${deleteIcon}</button>`
                 : '';
             return `
-                <div class="activity-card" data-id="${act.id}" data-created-by-user-id="${act.createdByUserId ?? ''}" style="border-left-color: ${act.color}">
-                    ${btns}
-                    <h4>${act.activity}</h4>
-                    <p class="activity-time">${act.slot.startTime} - ${act.slot.endTime}</p>
-                    <p class="activity-workspace">${act.workspaceName}</p>
+                <div class=\"activity-card\" data-id=\"${act.id}\" data-created-by-user-id=\"${act.createdByUserId ?? ''}\" style=\"border-left-color: ${act.color}\">
+                    <div class=\"activity-header\">${act.activity}${btns}</div>
+                    <div class=\"activity-meta\">
+                      <span class=\"activity-time\">${act.slot.startTime} - ${act.slot.endTime}</span>
+                      <span class=\"activity-workspace\">${act.workspaceName}</span>
+                    </div>
                 </div>
             `;
             }).join('');
