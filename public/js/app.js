@@ -261,14 +261,14 @@ document.addEventListener('DOMContentLoaded', () => {
               const btns = canEdit
                 ? `<span class="card-action edit" style="margin-left:8px; cursor: pointer; color: #0d6efd;">Edit</span><span class="card-action delete" style="margin-left:6px; cursor: pointer; color: #dc3545;">Delete</span>`
                 : '';
-              return `
-                <div class="activity-card" data-id="${act.id}" style="border-left-color: ${act.color}">
+            return `
+                <div class="activity-card" data-id="${act.id}" data-created-by="${act.createdByUserId ?? ''}" style="border-left-color: ${act.color}">
                     ${btns}
                     <h4>${act.activity}</h4>
                     <p class="activity-time">${act.slot.startTime} - ${act.slot.endTime}</p>
                     <p class="activity-workspace">${act.workspaceName}</p>
                 </div>
-              `;
+            `;
             }).join('');
         }
     }
