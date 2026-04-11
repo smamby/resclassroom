@@ -254,15 +254,16 @@ document.addEventListener('DOMContentLoaded', () => {
               const canEdit = (function() {
                 let role = (sessionStorage.getItem('role') || 'visitor').toString().toLowerCase();
                 const uid = String(sessionStorage.getItem('userId') || '');
+                console.log('[BOOKING-UI] canEdit check', act?.id, 'role=', role, 'uid=', uid, 'createdBy=', act?.createdByUserId);
                 if (role === 'admin') return true;
                 if (role === 'instructor' && String(act.createdByUserId) === String(uid)) return true;
                 return false;
               })();
-              const btns = canEdit
+            const btns = canEdit
                 ? `<button class="card-action edit" style="margin-left:8px; background: none; border: none; color: #0d6efd; cursor: pointer;">Edit</button><button class="card-action delete" style="margin-left:6px; background: none; border: none; color: #dc3545; cursor: pointer;">Delete</button>`
                 : '';
             return `
-                <div class="activity-card" data-id="${act.id}" data-created-by="${act.createdByUserId ?? ''}" style="border-left-color: ${act.color}">
+                <div class="activity-card" data-id="${act.id}" data-created-by-user-id="${act.createdByUserId ?? ''}" style="border-left-color: ${act.color}">
                     ${btns}
                     <h4>${act.activity}</h4>
                     <p class="activity-time">${act.slot.startTime} - ${act.slot.endTime}</p>
