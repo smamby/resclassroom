@@ -324,9 +324,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = actionEl.closest('.activity-card');
             const bookingId = card?.dataset?.id;
             if (!bookingId || !action) return;
-            if (action === 'edit') {
-                try {
-                    const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
+        if (action === 'edit') {
+            console.log('[BOOKING-UI] Edit button clicked for booking', bookingId);
+            try {
+                const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
                     if (!res.ok) {
                         alert('No se pudo obtener la reserva');
                         return;
