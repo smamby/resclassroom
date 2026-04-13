@@ -1,0 +1,57 @@
+[{
+  "_id": {
+    "$oid": "69dd3ae546cc34721b34f844"
+  },
+  "workspaceId": "69dd39d0004ca51922e64e8c",
+  "startDate": "2026-04-13",
+  "endDate": "2026-04-13",
+  "startTime": "16:00",
+  "endTime": "19:00",
+  "userId": "69dcf39ef44f250f50bd2b5b",
+  "actividad": "yoga",
+  "color": "#f73b45",
+  "days": [
+    1,
+    4
+  ],
+  "notes": "",
+  "status": "confirmed",
+  "createdAt": {
+    "$date": "2026-04-13T18:50:13.274Z"
+  },
+  "updatedAt": {
+    "$date": "2026-04-13T18:50:13.274Z"
+  },
+  "modified": false,
+  "modifiedAt": null,
+  "modifiedByName": null,
+  "id": null
+},
+{
+  "_id": {
+    "$oid": "69dd3b1a46cc34721b34f845"
+  },
+  "workspaceId": "69dd39d0004ca51922e64e8c",
+  "startDate": "2026-04-13",
+  "endDate": "2026-04-13",
+  "startTime": "19:00",
+  "endTime": "22:00",
+  "userId": "69dcf39ef44f250f50bd2b5b",
+  "actividad": "streaching",
+  "color": "#86f73b",
+  "days": [
+    1
+  ],
+  "notes": "",
+  "status": "confirmed",
+  "createdAt": {
+    "$date": "2026-04-13T18:51:06.966Z"
+  },
+  "updatedAt": {
+    "$date": "2026-04-13T18:51:06.966Z"
+  },
+  "modified": false,
+  "modifiedAt": null,
+  "modifiedByName": null,
+  "id": null
+}]

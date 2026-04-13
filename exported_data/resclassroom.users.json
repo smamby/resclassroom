@@ -1,0 +1,39 @@
+[{
+  "_id": {
+    "$oid": "69dcf2bff44f250f50bd2b58"
+  },
+  "name": "carla",
+  "surname": "Perez",
+  "email": "cape@mail.com",
+  "role": "visitor",
+  "passwordHash": "$2a$10$YomEW3vkWr2w6zvJEvN1u.9ucBsoKUNWgCcTdTfI7kYAbQmZdmZlq",
+  "createdAt": {
+    "$date": "2026-04-13T13:42:23.461Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "69dcf357f44f250f50bd2b5a"
+  },
+  "name": "Maria",
+  "surname": "Perez",
+  "email": "mape@mail.com",
+  "role": "admin",
+  "passwordHash": "$2a$10$te5YELk5Z7zIfskJEFdv5ukxiRlI.qVW2RSUxxByEa3E.rDQ5pOai",
+  "createdAt": {
+    "$date": "2026-04-13T13:44:55.874Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "69dcf39ef44f250f50bd2b5b"
+  },
+  "name": "Juan",
+  "surname": "Perez",
+  "email": "jupe@mail.com",
+  "role": "instructor",
+  "passwordHash": "$2a$10$unVz/a3SQoirJK0Y8Kpw6O.RGYnuRb8D1qFJjoKqCQMvUbHirWGZq",
+  "createdAt": {
+    "$date": "2026-04-13T13:46:06.110Z"
+  }
+}]

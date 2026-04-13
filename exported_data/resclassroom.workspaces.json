@@ -1,0 +1,18 @@
+[{
+  "_id": {
+    "$oid": "69dd39d0004ca51922e64e8c"
+  },
+  "name": "Aula principal",
+  "type": "Classroom",
+  "capacity": 40,
+  "location": "Rivadavia 1255",
+  "equipment": [
+    "Proyector",
+    "Pizarra Blanca",
+    "AC"
+  ],
+  "createdBy": "69dcf357f44f250f50bd2b5a",
+  "createdAt": {
+    "$date": "2026-04-13T18:45:36.208Z"
+  }
+}]
