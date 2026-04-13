@@ -1,5 +1,6 @@
 const Booking = require('./models/Booking');
 const BookingStore = require('./store');
+const UserStore = require('../user/store');
 
 class BookingController {
   constructor() {
@@ -214,9 +215,21 @@ class BookingController {
         return res.status(404).json({ error: 'Booking not found' });
       }
 
-      // Authorization: admin can modify any, instructor only their own
-      if (user.role === 'instructor' && String(existing.userId) !== String(user.id)) {
+      // Authorization: positive check - admin OR (instructor AND owner)
+      const canModify = 
+        user.role === 'admin' || 
+        (user.role === 'instructor' && String(existing.userId) === String(user.id));
+      if (!canModify) {
         return res.status(403).json({ error: 'Insufficient privileges to modify this booking' });
+      }
+
+      // Verify admin claim in DB to prevent sessionStorage manipulation
+      if (user.role === 'admin') {
+        const userStore = new UserStore();
+        const dbUser = await userStore.findById(user.id);
+        if (!dbUser || dbUser.role !== 'admin') {
+          return res.status(403).json({ error: 'Invalid admin credentials' });
+        }
       }
 
       // Build updates; do not allow changing owner implicitly
@@ -271,10 +284,23 @@ class BookingController {
       if (!existing) {
         return res.status(404).json({ error: 'Booking not found' });
       }
-      // Admin can delete any, instructor only their own bookings
-      if (user.role === 'instructor' && String(existing.userId) !== String(user.id)) {
+      // Authorization: positive check - admin OR (instructor AND owner)
+      const canDelete = 
+        user.role === 'admin' || 
+        (user.role === 'instructor' && String(existing.userId) === String(user.id));
+      if (!canDelete) {
         return res.status(403).json({ error: 'Insufficient privileges to delete this booking' });
       }
+
+      // Verify admin claim in DB to prevent sessionStorage manipulation
+      if (user.role === 'admin') {
+        const userStore = new UserStore();
+        const dbUser = await userStore.findById(user.id);
+        if (!dbUser || dbUser.role !== 'admin') {
+          return res.status(403).json({ error: 'Invalid admin credentials' });
+        }
+      }
+
       const result = await this.store.delete(req.params.id);
       if (result) {
         res.status(200).json({ message: 'Booking deleted successfully' });

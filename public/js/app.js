@@ -358,6 +358,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderCalendar();
                 populateActivitySelect();
                 populateWorkspaceSelect();
+                if (selectedDay && selectedDay.dateStr) {
+                  const activities = getFilteredActivities(
+                    selectedDay.dateStr, 
+                    new Date(selectedDay.dateStr).getDay()
+                  );
+                  selectDay(selectedDay.day, selectedDay.dateStr, activities);
+                }
               } else {
                 const err = await res.json();
                 alert('Error al eliminar: ' + (err?.error || 'desconocido'));
@@ -425,6 +432,14 @@ document.addEventListener('DOMContentLoaded', () => {
           renderCalendar();
           populateActivitySelect();
           populateWorkspaceSelect();
+          // Actualizar aside si hay fecha seleccionada
+          if (selectedDay && selectedDay.dateStr) {
+            const activities = getFilteredActivities(
+              selectedDay.dateStr, 
+              new Date(selectedDay.dateStr).getDay()
+            );
+            selectDay(selectedDay.day, selectedDay.dateStr, activities);
+          }
         } else {
           const err = await res.json();
           alert('Error al eliminar: ' + (err?.error || 'desconocido'));
@@ -513,7 +528,19 @@ document.addEventListener('DOMContentLoaded', () => {
                   delete reservationForm.dataset.editId;
                   // Refresh bookings view
                   fetchBookingsFromApi()
-                    .then(() => { renderCalendar(); populateActivitySelect(); populateWorkspaceSelect(); })
+                    .then(() => { 
+                      renderCalendar(); 
+                      populateActivitySelect(); 
+                      populateWorkspaceSelect();
+                      // Actualizar aside si hay fecha seleccionada
+                      if (selectedDay && selectedDay.dateStr) {
+                        const activities = getFilteredActivities(
+                          selectedDay.dateStr, 
+                          new Date(selectedDay.dateStr).getDay()
+                        );
+                        selectDay(selectedDay.day, selectedDay.dateStr, activities);
+                      }
+                    })
                     .catch(err => console.error('Error refreshing after edit', err));
                 } else {
                   const errMsg = (result && result.error) ? result.error : 'No se pudo guardar la reserva (posible problema de permisos)';
@@ -569,6 +596,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderCalendar();
                     populateActivitySelect();
                     populateWorkspaceSelect();
+                    if (selectedDay && selectedDay.dateStr) {
+                      const activities = getFilteredActivities(
+                        selectedDay.dateStr, 
+                        new Date(selectedDay.dateStr).getDay()
+                      );
+                      selectDay(selectedDay.day, selectedDay.dateStr, activities);
+                    }
                   })
                   .catch(err => {
                     console.error('Error refreshing bookings after create', err);
@@ -667,7 +701,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (calendarGrid) calendarGrid.innerHTML = '';
         await checkLoginStatus();
         fetchBookingsFromApi()
-          .then(() => { renderCalendar(); populateActivitySelect(); populateWorkspaceSelect(); })
+          .then(() => { 
+            renderCalendar(); 
+            populateActivitySelect(); 
+            populateWorkspaceSelect();
+            if (selectedDay && selectedDay.dateStr) {
+              const activities = getFilteredActivities(
+                selectedDay.dateStr, 
+                new Date(selectedDay.dateStr).getDay()
+              );
+              selectDay(selectedDay.day, selectedDay.dateStr, activities);
+            }
+          })
           .catch(err => console.error('Error refreshing after edit', err));
       });
     }
