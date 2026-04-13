@@ -73,6 +73,38 @@ class BookingController {
     return d.getUTCDay();
   }
 
+  // Verifica solapamiento de horarios para una reserva
+  // Retorna mensaje de error si hay conflicto, null si no hay
+  async checkOverlap(workspaceId, dateList, days, startTime, endTime, excludeBookingId = null) {
+    const bookings = await this.store.findByWorkspace(workspaceId);
+    const newDaysSet = new Set(days.map(d => Number(d)));
+    
+    for (const eb of bookings) {
+      if (excludeBookingId && String(eb._id) === String(excludeBookingId)) continue;
+      
+      const ebDates = this._expandBookingDates(eb);
+      const ebDaysSet = new Set(eb.days || []);
+      
+      for (const dateStr of dateList) {
+        if (!ebDates.includes(dateStr)) continue;
+        
+        const dowUTC = this._dowUTC(dateStr);
+        if (ebDaysSet.size > 0 && !ebDaysSet.has(dowUTC)) continue;
+        
+        const newStart = new Date(dateStr + 'T' + startTime + ':00');
+        const newEnd = new Date(dateStr + 'T' + endTime + ':00');
+        const es = new Date(dateStr + 'T' + eb.startTime + ':00');
+        const ee = new Date(dateStr + 'T' + eb.endTime + ':00');
+        
+        if (newStart < ee && newEnd > es) {
+          // Mensaje simplificado sin ID
+          return `Solape el ${dateStr} de ${startTime} a ${endTime}`;
+        }
+      }
+    }
+    return null;
+  }
+
   // List bookings with optional filters
   async getAllBookings(req, res) {
     try {
@@ -114,6 +146,15 @@ class BookingController {
       }
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  }
+
+  async getBookingsByWorkspace(req, res) {
+    try {
+      const results = await this.store.findByWorkspace(req.params.workspaceId);
+      res.status(200).json(results);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
     }
   }
 
@@ -165,36 +206,8 @@ class BookingController {
         cur.setUTCDate(cur.getUTCDate() + 1);
       }
 
-      // Check conflicts against existing bookings for the workspace across dates (per date logic)
-      const existingList = await this.store.findAll();
-      let conflictReason = null;
-      
-      for (const eb of existingList.filter(b => b.workspaceId === workspaceId)) {
-        // expand eb dates
-        const ebDates = this._expandBookingDates(eb);
-        const ebDays = Array.isArray(eb.days) ? eb.days : [];
-        const ebDaysSet = new Set(ebDays);
-        
-        for (const dateStr of dateList) {
-          if (!ebDates.includes(dateStr)) continue;
-          
-          // Usar UTC para comparación (consistente con cómo se almacenaron los días)
-          const dowUTC = this._dowUTC(dateStr);
-          if (ebDaysSet.size > 0 && !ebDaysSet.has(dowUTC)) continue;
-          
-          // time overlap check for this date
-          const newStart = new Date(dateStr + 'T' + startTime + ':00');
-          const newEnd = new Date(dateStr + 'T' + endTime + ':00');
-          const es = new Date(dateStr + 'T' + eb.startTime + ':00');
-          const ee = new Date(dateStr + 'T' + eb.endTime + ':00');
-          
-          if (newStart < ee && newEnd > es) {
-            conflictReason = `Solape con reserva existente ${eb._id || eb.id} en fecha ${dateStr}`;
-            break;
-          }
-        }
-        if (conflictReason) break;
-      }
+      // Check conflicts using reusable method
+      const conflictReason = await this.checkOverlap(workspaceId, dateList, days, startTime, endTime);
       if (conflictReason) {
         return res.status(409).json({ error: conflictReason });
       }
@@ -259,25 +272,44 @@ class BookingController {
         modifiedByName: user.name || user.username || ''
       };
 
-      // If date/startTime/endTime/workspaceId/actividad are being updated, validate solape
+      // Reconstruct dateList for overlap check
       const workspaceId = updates.workspaceId || existing.workspaceId;
-      const date = updates.date || existing.date;
       const startTime = updates.startTime || existing.startTime;
       const endTime = updates.endTime || existing.endTime;
-      const actividad = updates.actividad || existing.actividad;
-
-      const otherBookings = await this.store.findByWorkspaceAndDate(workspaceId, date);
-      if (otherBookings && otherBookings.length > 0) {
-        const newStart = new Date(`${date}T${startTime}:00`);
-        const newEnd = new Date(`${date}T${endTime}:00`);
-        for (const b of otherBookings) {
-          if (String(b._id) === String(existing._id)) continue;
-          const es = new Date(`${b.date}T${b.startTime}:00`);
-          const ee = new Date(`${b.date}T${b.endTime}:00`);
-          if (newStart < ee && newEnd > es) {
-            return res.status(409).json({ error: 'La reserva solapa con otra reserva para este workspace en esa fecha.' });
+      
+      const updateStartDate = updates.startDate || existing.startDate;
+      const updateEndDate = updates.endDate || existing.endDate;
+      const updateDays = updates.days || existing.days || [];
+      
+      // Generate dateList using same UTC logic as createBooking
+      const updateDateList = [];
+      if (updateStartDate && updateEndDate) {
+        const us = updateStartDate.split('-').map(n => parseInt(n, 10));
+        const ue = updateEndDate.split('-').map(n => parseInt(n, 10));
+        let uc = new Date(Date.UTC(us[0], us[1]-1, us[2]));
+        const ueEnd = new Date(Date.UTC(ue[0], ue[1]-1, ue[2]));
+        const udSet = new Set(updateDays.map(d => Number(d)));
+        while (uc <= ueEnd) {
+          const dow = uc.getUTCDay();
+          if (udSet.size === 0 || udSet.has(dow)) {
+            const ds = `${uc.getUTCFullYear()}-${String(uc.getUTCMonth()+1).padStart(2,'0')}-${String(uc.getUTCDate()).padStart(2,'0')}`;
+            updateDateList.push(ds);
           }
+          uc.setUTCDate(uc.getUTCDate() + 1);
         }
+      }
+
+      // Check conflicts using reusable method (exclude current booking being updated)
+      const conflictReason = await this.checkOverlap(
+        workspaceId,
+        updateDateList,
+        updateDays,
+        startTime,
+        endTime,
+        existing._id
+      );
+      if (conflictReason) {
+        return res.status(409).json({ error: conflictReason });
       }
 
       const updated = await this.store.update(req.params.id, updates);

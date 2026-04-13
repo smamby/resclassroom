@@ -26,9 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch('/workspaces', { credentials: 'include' });
         const data = await res.json();
         // Prefer the business id field first when available, fallback to _id
-        workspacesFromApi = data.map(ws => ({ id: ws.id || ws._id, name: ws.name }));
-        // Build a lookup map by id
-        workspacesFromApi.forEach(ws => { workspacesById[ws.id] = ws.name; });
+        workspacesFromApi = data.map(ws => ({ id: ws._id, name: ws.name, location: ws.location || '' }));
+        // Build a lookup map by id with name and location
+        workspacesFromApi.forEach(ws => { 
+          workspacesById[ws.id] = { name: ws.name, location: ws.location || '' }; 
+        });
       } catch (e) {
         workspacesFromApi = [];
       }
@@ -41,7 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         bookings = data.map(b => {
           const wsId = b.workspaceId;
-          const wsName = workspacesById[wsId] || b.workspaceName || wsId;
+          const wsData = workspacesById[wsId] || { name: b.workspaceName || wsId, location: '' };
+          const wsName = wsData.location ? `${wsData.name} (${wsData.location})` : wsData.name;
           const start = b.startDate || b.date;
           const end = b.endDate || b.date;
           // Expand recurrence into per-date slots using UTC-based arithmetic to avoid timezone drift
@@ -67,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             id: String(b._id || b.id),
             workspace: wsId,
             workspaceName: wsName,
+            workspaceLocation: wsData.location,
             color: b.color || '#999',
             actividad: b.actividad,
             activity: b.actividad,
@@ -259,25 +263,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (role === 'instructor' && String(act.createdByUserId) === String(uid)) return true;
                 return false;
               })();
-            const editIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L9 9l3.75 3.75 7-7z\"/></svg>`;
-            const deleteIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M3 6h18v2H3V6zm2 3h14l-1 12H6L5 9zm3-5h2l1-1h3l1 1h2v2H7V4z\"/></svg>`;
-            const btns = canEdit
-                ? ` <button class=\"icon-btn edit\" onclick=\"handleEditClick('${act.id}')\" aria-label=\"Editar\" title=\"Editar\" style=\"border:0;background:transparent;padding:0;margin-left:6px;cursor:pointer;display:inline-flex;align-items:center;\">${editIcon}</button><button class=\"icon-btn delete\" onclick=\"handleDeleteClick('${act.id}')\" aria-label=\"Eliminar\" title=\"Eliminar\" style=\"border:0;background:transparent;padding:0;margin-left:6px;cursor:pointer;display:inline-flex;align-items:center;\">${deleteIcon}</button>`
-                : '';
-            return `
-                <div class=\"activity-card\" data-id=\"${act.id}\" data-created-by-user-id=\"${act.createdByUserId ?? ''}\" style=\"border-left-color: ${act.color}\">
-                    <div class=\"activity-header\">
-                      ${act.activity}
-                      <div class=\"card-actions\" style=\"margin-left:0;\">
-                        ${btns}
+              const editIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L9 9l3.75 3.75 7-7z\"/></svg>`;
+              const deleteIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M3 6h18v2H3V6zm2 3h14l-1 12H6L5 9zm3-5h2l1-1h3l1 1h2v2H7V4z\"/></svg>`;
+              const btns = canEdit
+                  ? ` <button class=\"icon-btn edit\" onclick=\"handleEditClick('${act.id}')\" aria-label=\"Editar\" title=\"Editar\" style=\"border:0;background:transparent;padding:0;margin-left:6px;cursor:pointer;display:inline-flex;align-items:center;\">${editIcon}</button><button class=\"icon-btn delete\" onclick=\"handleDeleteClick('${act.id}')\" aria-label=\"Eliminar\" title=\"Eliminar\" style=\"border:0;background:transparent;padding:0;margin-left:6px;cursor:pointer;display:inline-flex;align-items:center;\">${deleteIcon}</button>`
+                  : '';
+              return `
+                  <div class=\"activity-card\" data-id=\"${act.id}\" data-created-by-user-id=\"${act.createdByUserId ?? ''}\" style=\"border-left-color: ${act.color}\">
+                      <div class=\"activity-header\">
+                        ${act.activity}
+                        <div class=\"card-actions\" style=\"margin-left:0;\">
+                          ${btns}
+                        </div>
                       </div>
-                    </div>
-                    <div class=\"activity-meta\">
-                      <span class=\"activity-time\">${act.slot.startTime} - ${act.slot.endTime}</span>
-                      <span class=\"activity-workspace\">${act.workspaceName}</span>
-                    </div>
-                </div>
-            `;
+                      <div class=\"activity-meta\">
+                        <span class=\"activity-time\">${act.slot.startTime} - ${act.slot.endTime}</span>
+                        <span class=\"activity-workspace\">${act.workspaceName}</span>
+                      </div>
+                  </div>
+              `;
             }).join('');
         }
     }
@@ -306,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
         workspacesFromApi.forEach(ws => {
             const option = document.createElement('option');
             option.value = ws.id;
-            option.textContent = ws.name;
+            option.textContent = ws.location ? `${ws.name} (${ws.location})` : ws.name;
             resWorkspace.appendChild(option);
         });
 
@@ -360,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 populateWorkspaceSelect();
                 if (selectedDay && selectedDay.dateStr) {
                   const activities = getFilteredActivities(
-                    selectedDay.dateStr, 
+                    selectedDay.dateStr,
                     new Date(selectedDay.dateStr).getDay()
                   );
                   selectDay(selectedDay.day, selectedDay.dateStr, activities);
@@ -435,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // Actualizar aside si hay fecha seleccionada
           if (selectedDay && selectedDay.dateStr) {
             const activities = getFilteredActivities(
-              selectedDay.dateStr, 
+              selectedDay.dateStr,
               new Date(selectedDay.dateStr).getDay()
             );
             selectDay(selectedDay.day, selectedDay.dateStr, activities);
@@ -528,14 +532,14 @@ document.addEventListener('DOMContentLoaded', () => {
                   delete reservationForm.dataset.editId;
                   // Refresh bookings view
                   fetchBookingsFromApi()
-                    .then(() => { 
-                      renderCalendar(); 
-                      populateActivitySelect(); 
+                    .then(() => {
+                      renderCalendar();
+                      populateActivitySelect();
                       populateWorkspaceSelect();
                       // Actualizar aside si hay fecha seleccionada
                       if (selectedDay && selectedDay.dateStr) {
                         const activities = getFilteredActivities(
-                          selectedDay.dateStr, 
+                          selectedDay.dateStr,
                           new Date(selectedDay.dateStr).getDay()
                         );
                         selectDay(selectedDay.day, selectedDay.dateStr, activities);
@@ -598,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     populateWorkspaceSelect();
                     if (selectedDay && selectedDay.dateStr) {
                       const activities = getFilteredActivities(
-                        selectedDay.dateStr, 
+                        selectedDay.dateStr,
                         new Date(selectedDay.dateStr).getDay()
                       );
                       selectDay(selectedDay.day, selectedDay.dateStr, activities);
@@ -701,13 +705,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (calendarGrid) calendarGrid.innerHTML = '';
         await checkLoginStatus();
         fetchBookingsFromApi()
-          .then(() => { 
-            renderCalendar(); 
-            populateActivitySelect(); 
+          .then(() => {
+            renderCalendar();
+            populateActivitySelect();
             populateWorkspaceSelect();
             if (selectedDay && selectedDay.dateStr) {
               const activities = getFilteredActivities(
-                selectedDay.dateStr, 
+                selectedDay.dateStr,
                 new Date(selectedDay.dateStr).getDay()
               );
               selectDay(selectedDay.day, selectedDay.dateStr, activities);

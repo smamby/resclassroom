@@ -61,6 +61,22 @@ class BookingStore {
     return result.deletedCount > 0;
   }
 
+  // Find bookings by workspace (excluding expired ones)
+  async findByWorkspace(workspaceId) {
+    const db = getDb();
+    const collection = db.collection('bookings');
+    // Excluir reservas con endDate anterior a hoy
+    const today = new Date().toISOString().split('T')[0];
+    return await collection.find({ 
+      workspaceId,
+      $or: [
+        { endDate: { $gte: today } },
+        { endDate: { $exists: false } },
+        { endDate: null }
+      ]
+    }).toArray();
+  }
+
   // Extra helper to find bookings by workspace and date for solape checks
   async findByWorkspaceAndDate(workspaceId, date) {
     const db = getDb();

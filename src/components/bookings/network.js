@@ -15,6 +15,9 @@ function getController() {
 router.get('/', (req, res) => getController().getAllBookings(req, res));
 router.post('/', (req, res) => getController().createBooking(req, res));
 
+// Get bookings by workspace (excluding expired)
+router.get('/workspace/:workspaceId', (req, res) => getController().getBookingsByWorkspace(req, res));
+
 // Operations on a single booking
 router.get('/:id', (req, res) => getController().getBookingById(req, res));
 router.put('/:id', (req, res) => getController().updateBooking(req, res));
