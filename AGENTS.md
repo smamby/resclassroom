@@ -60,7 +60,7 @@ public/
 ### Usuario
 ```javascript
 {
-  id: string,          // UUID generado
+  _id: ObjectId,      // MongoDB genera automáticamente
   name: string,        // Requerido
   surname: string,     // Requerido
   email: string,       // Requerido, único, formato válido
@@ -73,13 +73,13 @@ public/
 ### Espacio de Trabajo
 ```javascript
 {
-  id: string,          // UUID generado
+  _id: ObjectId,      // MongoDB genera automáticamente
   name: string,        // Requerido
   type: string,        // classroom, workshop, lab, etc.
   capacity: number,    // > 0
   location: string,
   equipment: string[],
-  createdBy: string,   // User ID
+  createdBy: string,   // User _id
   createdAt: Date
 }
 ```
@@ -87,18 +87,18 @@ public/
 ### Reserva
 ```javascript
 {
-  id: string,          // UUID generado
-  workspaceId: string, // Reference to Workspace (preferred) or espacioId
-  usuarioId: string,   // Reference to User
-  startDate: string,   // YYYY-MM-DD
+  _id: ObjectId,         // MongoDB genera automáticamente
+  workspaceId: string,  // ObjectId del Workspace (string)
+  userId: string,        // ObjectId del User (string)
+  startDate: string,     // YYYY-MM-DD
   endDate: string,     // YYYY-MM-DD
   startTime: string,   // HH:mm
   endTime: string,     // HH:mm
-  actividad: string,   // Descripción de la reserva (preferred) or propósito
+  actividad: string,   // Descripción de la reserva
   color: string,       // Color identificativo (default: '#999')
-  days: Array<number>, // Dias de la semana (0-6) que se repite la actividad
+  days: Array,        // Dias de la semana (0-6)
   notes: string,       // Notas opcionales
-  status: string,      // confirmed | cancelled | completed (default: 'confirmed')
+  status: string,      // confirmed | cancelled | completed
   createdAt: Date,
   updatedAt: Date
 }
@@ -198,11 +198,41 @@ public/
 7. **Testing**: Archivos de prueba en `__tests__` junto a los componentes
 
 ## Estado Actual
-- Autenticación JWT parcialmente implementada (login/register funcionando)
+- Autenticación JWT funcionando (login/register)
 - CRUD completo para espacios de trabajo y usuarios
 - Sistema de reservas completo con detección de conflictos
 - Calendario frontend funcional con vista mensual
 - Filtros de espacios y actividades funcionando
+- Tests de integración para flujos de bookings
+
+## Tests
+
+### Suite de Tests
+- **Ubicación**: `test/integration/bookings.integration.test.js` y componentes `__tests__/`
+- **Ejecución**: `npm test`
+
+### Tests de Integración (Bookings)
+Los tests de integración verifican flujos de error y casos exitosos:
+
+#### Flujos de error (403, 400)
+- Instructor no puede modificar booking de admin → 403
+- Usuario no autenticado no puede crear booking → 403
+- Visitor no puede crear booking → 403
+- Workspace inválido → 400
+- Campos requeridos faltantes → 400
+
+#### Flujo exitoso (201)
+- Admin puede crear un booking
+
+#### Datos de test
+- Los tests crean usuarios y workspaces temporalmente con ObjectId de MongoDB
+- Se usa header `X-User-Id` con el ObjectId string para autenticación en tests
+- Los bookings usan workspaceId como string del ObjectId de MongoDB
+
+### Limpieza
+- Cada ejecución crea ~2 bookings de test
+- Los workspaces se recrean en cada ejecución (deleteMany + insert)
+- Los usuarios de test se crean con email '@test.com'
 
 ## Próximos Pasos Sugeridos
 1. Implementar sistema de notificaciones por email

@@ -10,7 +10,7 @@ describe('Workspace', () => {
       equipment: ['proyector', 'pizarra']
     });
     
-    expect(workspace.id).toBeDefined();
+    expect(workspace._id).toBe(undefined);
     expect(workspace.name).toBe('Aula 101');
     expect(workspace.type).toBe('classroom');
     expect(workspace.capacity).toBe(30);

@@ -1,7 +1,7 @@
-const BookingStore = require('../store');
+const BookingStore = require('../../bookings/store');
 
 // Mock the MongoDB wrapper
-jest.mock('../../db', () => ({
+jest.mock('../../../db', () => ({
   getDb: jest.fn()
 }));
 
@@ -19,9 +19,9 @@ describe('BookingStore', () => {
       },
       findOne: async (filter) => mockData.bookings.find(b => b._id === filter._id || b.id === filter.id),
       findAll: async () => mockData.bookings,
-      find: (filter) => ({ toArray: async () => mockData.bookings.filter(b =>
+      find: (filter) => ({ toArray: async () => mockData.bookings.filter(b => 
         (filter.workspaceId ? b.workspaceId === filter.workspaceId : true) && (filter.date ? b.date === filter.date : true)
-      )) }),
+      )}),
       findOneAndUpdate: async (filter, update) => {
         const idx = mockData.bookings.findIndex(b => b._id === filter._id || b.id === filter.id);
         if (idx >= 0) {
@@ -49,7 +49,7 @@ describe('BookingStore', () => {
     };
 
     // Patch the DB mock
-    const dbModule = require('../../db');
+    const dbModule = require('../../../db');
     dbModule.getDb.mockReturnValue(mockDbInstance);
   });
 

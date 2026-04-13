@@ -1,6 +1,16 @@
+const { ObjectId } = require('mongodb');
 const Booking = require('./models/Booking');
 const BookingStore = require('./store');
 const UserStore = require('../user/store');
+
+function toObjectId(id) {
+  if (!id) return null;
+  if (id instanceof ObjectId) return id;
+  if (typeof id === 'string' && /^[0-9a-f]{24}$/i.test(id)) {
+    return new ObjectId(id);
+  }
+  return id;
+}
 
 class BookingController {
   constructor() {
@@ -29,24 +39,25 @@ class BookingController {
   // Given a booking eb, generate all dates (YYYY-MM-DD) for its range
   _expandBookingDates(eb) {
     const dates = [];
-    let ebDates = [];
-    if (eb.startDate && eb.endDate) {
-      let cur = new Date(eb.startDate);
-      const end = new Date(eb.endDate);
-      while (cur <= end) {
-        const ds = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
-        ebDates.push(ds);
-        cur.setDate(cur.getDate() + 1);
-      }
-    } else if (eb.date) {
-      ebDates.push(eb.date);
+    if (!eb.startDate || !eb.endDate) {
+      if (eb.date) return [eb.date];
+      return [];
     }
-    // apply days restriction if present
+    
+    // Parse usando el mismo approach que createBooking (fecha local)
+    const s = eb.startDate.split('-').map(n => parseInt(n, 10));
+    const e = eb.endDate.split('-').map(n => parseInt(n, 10));
+    let cur = new Date(s[0], s[1] - 1, s[2]);
+    const end = new Date(e[0], e[1] - 1, e[2]);
+    
     const desiredDays = Array.isArray(eb.days) ? eb.days : [];
-    for (const ds of ebDates) {
-      const d = new Date(ds); // local date
-      const dow = d.getDay();
-      if (desiredDays.length === 0 || desiredDays.includes(dow)) dates.push(ds);
+    while (cur <= end) {
+      const dow = cur.getDay();
+      if (desiredDays.length === 0 || desiredDays.includes(dow)) {
+        const ds = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+        dates.push(ds);
+      }
+      cur.setDate(cur.getDate() + 1);
     }
     return dates;
   }
@@ -123,53 +134,60 @@ class BookingController {
       // Check workspace existence in controller (as requested)
       const db = require('../../db').getDb();
       const workspacesCol = db.collection('workspaces');
-      const workspace = await workspacesCol.findOne({ $or: [{ _id: workspaceId }, { id: workspaceId }] });
+      const wsOid = toObjectId(workspaceId);
+      const workspace = await workspacesCol.findOne({ _id: wsOid });
       if (!workspace) {
         return res.status(400).json({ error: 'Workspace not found' });
       }
 
       // Basic date/time validation
       if (new Date(startDate) > new Date(endDate)) {
-        return res.status(400).json({ error: 'startDate must be <= endDate' });
+        return res.status(400).json({ error: 'la fecha de inicio debe ser anterior a la de finalización' }); // 'startDate must be <= endDate' });
       }
       if (startTime >= endTime) {
-        return res.status(400).json({ error: 'startTime must be earlier than endTime' });
+        return res.status(400).json({ error: 'la hora de inicio debe ser anterior a la de finalización' }); // 'startTime must be earlier than endTime' });
       }
 
-      // Recurrence: compute all dates in [startDate, endDate] that match selected days using local date arithmetic
+      // Recurrence: compute all dates in [startDate, endDate] that match selected days using UTC date arithmetic
       const dateList = [];
-      const s = startDate.split('-').map(n => parseInt(n, 10)); // [Y, M, D]
+      const s = startDate.split('-').map(n => parseInt(n, 10));
       const e = endDate.split('-').map(n => parseInt(n, 10));
-      let curLocal = new Date(s[0], s[1]-1, s[2]);
-      const endLocal = new Date(e[0], e[1]-1, e[2]);
+      let cur = new Date(Date.UTC(s[0], s[1]-1, s[2]));
+      const end = new Date(Date.UTC(e[0], e[1]-1, e[2]));
       const newDaysSet = new Set(days.map(d => Number(d)));
-      while (curLocal <= endLocal) {
-        const dow = curLocal.getDay();
+      
+      while (cur <= end) {
+        const dow = cur.getUTCDay();
         if (newDaysSet.size === 0 || newDaysSet.has(dow)) {
-          const ds = `${curLocal.getFullYear()}-${String(curLocal.getMonth()+1).padStart(2, '0')}-${String(curLocal.getDate()).padStart(2, '0')}`;
+          const ds = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, '0')}-${String(cur.getUTCDate()).padStart(2, '0')}`;
           dateList.push(ds);
         }
-        curLocal.setDate(curLocal.getDate() + 1);
+        cur.setUTCDate(cur.getUTCDate() + 1);
       }
 
       // Check conflicts against existing bookings for the workspace across dates (per date logic)
       const existingList = await this.store.findAll();
       let conflictReason = null;
+      
       for (const eb of existingList.filter(b => b.workspaceId === workspaceId)) {
         // expand eb dates
         const ebDates = this._expandBookingDates(eb);
         const ebDays = Array.isArray(eb.days) ? eb.days : [];
         const ebDaysSet = new Set(ebDays);
+        
         for (const dateStr of dateList) {
           if (!ebDates.includes(dateStr)) continue;
-          // check dow match with eb.days
-          const dow = this._dowUTC(dateStr);
-          if (ebDaysSet.size > 0 && !ebDaysSet.has(dow)) continue;
+          
+          // Usar UTC para comparación (consistente con cómo se almacenaron los días)
+          const dowUTC = this._dowUTC(dateStr);
+          if (ebDaysSet.size > 0 && !ebDaysSet.has(dowUTC)) continue;
+          
           // time overlap check for this date
-          const newStart = new Date(dateStr + 'T' + startTime + ':00Z');
-          const newEnd = new Date(dateStr + 'T' + endTime + ':00Z');
-          const es = new Date(dateStr + 'T' + eb.startTime + ':00Z');
-          const ee = new Date(dateStr + 'T' + eb.endTime + ':00Z');
+          const newStart = new Date(dateStr + 'T' + startTime + ':00');
+          const newEnd = new Date(dateStr + 'T' + endTime + ':00');
+          const es = new Date(dateStr + 'T' + eb.startTime + ':00');
+          const ee = new Date(dateStr + 'T' + eb.endTime + ':00');
+          
           if (newStart < ee && newEnd > es) {
             conflictReason = `Solape con reserva existente ${eb._id || eb.id} en fecha ${dateStr}`;
             break;
@@ -180,7 +198,6 @@ class BookingController {
       if (conflictReason) {
         return res.status(409).json({ error: conflictReason });
       }
-      console.log('color', req.body.color);
       // Create a booking entry with recurrence window (single entry that represents the range)
       const booking = new Booking({
         workspaceId,
@@ -216,8 +233,8 @@ class BookingController {
       }
 
       // Authorization: positive check - admin OR (instructor AND owner)
-      const canModify = 
-        user.role === 'admin' || 
+      const canModify =
+        user.role === 'admin' ||
         (user.role === 'instructor' && String(existing.userId) === String(user.id));
       if (!canModify) {
         return res.status(403).json({ error: 'Insufficient privileges to modify this booking' });
@@ -285,8 +302,8 @@ class BookingController {
         return res.status(404).json({ error: 'Booking not found' });
       }
       // Authorization: positive check - admin OR (instructor AND owner)
-      const canDelete = 
-        user.role === 'admin' || 
+      const canDelete =
+        user.role === 'admin' ||
         (user.role === 'instructor' && String(existing.userId) === String(user.id));
       if (!canDelete) {
         return res.status(403).json({ error: 'Insufficient privileges to delete this booking' });

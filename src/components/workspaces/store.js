@@ -1,4 +1,14 @@
+const { ObjectId } = require('mongodb');
 const getDb = require('../../db').getDb;
+
+function toObjectId(id) {
+  if (!id) return null;
+  if (id instanceof ObjectId) return id;
+  if (typeof id === 'string' && /^[0-9a-f]{24}$/i.test(id)) {
+    return new ObjectId(id);
+  }
+  return id;
+}
 
 class WorkspaceStore {
   async create(data) {
@@ -11,7 +21,8 @@ class WorkspaceStore {
   async findById(id) {
     const db = getDb();
     const collection = db.collection('workspaces');
-    return await collection.findOne({ $or: [{ _id: id }, { id: id }] });
+    const oid = toObjectId(id);
+    return await collection.findOne({ _id: oid });
   }
 
   async findAll() {
@@ -23,8 +34,9 @@ class WorkspaceStore {
   async update(id, updates) {
     const db = getDb();
     const collection = db.collection('workspaces');
+    const oid = toObjectId(id);
     const result = await collection.findOneAndUpdate(
-      { $or: [{ _id: id }, { id: id }] },
+      { _id: oid },
       { $set: updates },
       { returnDocument: 'after' }
     );
@@ -34,7 +46,8 @@ class WorkspaceStore {
   async delete(id) {
     const db = getDb();
     const collection = db.collection('workspaces');
-    const result = await collection.deleteOne({ $or: [{ _id: id }, { id: id }] });
+    const oid = toObjectId(id);
+    const result = await collection.deleteOne({ _id: oid });
     return result.deletedCount > 0;
   }
 }

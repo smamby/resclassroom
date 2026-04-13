@@ -8,7 +8,7 @@ class Workspace {
       throw new Error('Capacity must be a positive integer');
     }
     
-    this.id = data.id || Math.random().toString(36).substr(2, 9);
+    this._id = data._id;
     this.name = data.name.trim();
     this.type = data.type || '';
     this.capacity = data.capacity || 0;

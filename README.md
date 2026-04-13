@@ -62,11 +62,11 @@ public/
 
 ## Modelos de datos principales
 - Usuario
-  - id, name, surname, email, role, passwordHash, createdAt
+  - _id (ObjectId de MongoDB), name, surname, email, role, passwordHash, createdAt
 - Espacio de Trabajo (Workspace)
-  - id, name, type, capacity, location, equipment, createdBy, createdAt
+  - _id (ObjectId de MongoDB), name, type, capacity, location, equipment, createdBy, createdAt
 - Reserva (Booking)
-  - id, workspaceId, usuarioId, startDate, endDate, startTime, endTime, actividad, color, days, notes, status, createdAt, updatedAt
+  - _id (ObjectId de MongoDB), workspaceId (string ObjectId), userId (string ObjectId), startDate, endDate, startTime, endTime, actividad, color, days, notes, status, createdAt, updatedAt
 
 ## Endpoints REST principales
 - Workspaces

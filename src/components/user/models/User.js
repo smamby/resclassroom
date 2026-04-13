@@ -27,7 +27,7 @@ class User {
       throw new Error(`Invalid role. Must be one of: ${Object.values(ROLES).join(', ')}`);
     }
     
-    this.id = data.id || Math.random().toString(36).substr(2, 9);
+    this._id = data._id;
     this.name = data.name.trim();
     this.surname = data.surname.trim();
     this.email = data.email.trim().toLowerCase();
@@ -39,7 +39,6 @@ class User {
 
   toJSON() {
     const { passwordHash, ...rest } = this;
-    // If passwordHash exists on the instance, exclude it from JSON reps
     return rest;
   }
 }

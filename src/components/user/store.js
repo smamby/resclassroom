@@ -1,26 +1,35 @@
+const { ObjectId } = require('mongodb');
 const getDb = require('../../db').getDb;
+
+function toObjectId(id) {
+  if (!id) return null;
+  if (id instanceof ObjectId) return id;
+  if (typeof id === 'string' && /^[0-9a-f]{24}$/i.test(id)) {
+    return new ObjectId(id);
+  }
+  return id;
+}
 
 class UserStore {
   async create(data) {
     const db = getDb();
     const collection = db.collection('users');
     const result = await collection.insertOne(data);
-    const sanitized = {
+    return {
       _id: result.insertedId,
-      id: data.id,
       name: data.name,
       surname: data.surname,
       email: data.email,
       role: data.role,
       createdAt: data.createdAt
     };
-    return sanitized;
   }
 
   async findById(id) {
     const db = getDb();
     const collection = db.collection('users');
-    const user = await collection.findOne({ $or: [{ _id: id }, { id: id }] });
+    const oid = toObjectId(id);
+    const user = await collection.findOne({ _id: oid });
     if (!user) return null;
     const { passwordHash, _id, ...rest } = user;
     return { _id, ...rest };
@@ -29,7 +38,6 @@ class UserStore {
   async findByEmail(email) {
     const db = getDb();
     const collection = db.collection('users');
-    // Return the full user document so login can access passwordHash for verification
     return await collection.findOne({ email: email.toLowerCase() });
   }
 
@@ -46,8 +54,9 @@ class UserStore {
   async update(id, updates) {
     const db = getDb();
     const collection = db.collection('users');
+    const oid = toObjectId(id);
     const result = await collection.findOneAndUpdate(
-      { $or: [{ _id: id }, { id: id }] },
+      { _id: oid },
       { $set: updates },
       { returnDocument: 'after' }
     );
@@ -61,7 +70,8 @@ class UserStore {
   async delete(id) {
     const db = getDb();
     const collection = db.collection('users');
-    const result = await collection.deleteOne({ $or: [{ _id: id }, { id: id }] });
+    const oid = toObjectId(id);
+    const result = await collection.deleteOne({ _id: oid });
     return result.deletedCount > 0;
   }
 }

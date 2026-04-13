@@ -48,10 +48,9 @@ Un sistema para reservar espacios de trabajo como aulas, talleres y otras instal
 - No puede crear o modificar espacios de trabajo
 
 ## Modelos de Datos
-- **Usuario**: id, nombre, apellido, email, rol, fechaCreación
-- **Espacio**: id, nombre, tipo, capacidad, ubicación, equipo, creadoPor, fechaCreación
-- **Reserva**: id, workspaceId, usuarioId, startDate, endDate, startTime, endTime, actividad, color, days, notes, status, createdAt, updatedAt
-- **Rol**: id, nombre, permisos
+- **Usuario**: _id (ObjectId), name, surname, email, role, passwordHash, createdAt
+- **Espacio**: _id (ObjectId), name, type, capacity, location, equipment, createdBy, createdAt
+- **Reserva**: _id (ObjectId), workspaceId (string ObjectId), userId (string ObjectId), startDate, endDate, startTime, endTime, actividad, color, days, notes, status, createdAt, updatedAt
 
 ## Requisitos No Funcionales
 - Autenticación y autorización de usuarios
@@ -158,13 +157,13 @@ components/workspaces/store.js (WorkspaceStore → MongoDB)
 ### Workspace
 ```javascript
 {
-  id: string,          // UUID generado
-  name: string,        // Requerido
-  type: string,        // classroom, workshop, lab, etc.
-  capacity: number,    // > 0
+  _id: ObjectId,      // MongoDB genera automáticamente
+  name: string,      // Requerido
+  type: string,      // classroom, workshop, lab, etc.
+  capacity: number,  // > 0
   location: string,
   equipment: string[],
-  createdBy: string,   // User ID
+  createdBy: string, // User _id
   createdAt: Date
 }
 ```
@@ -172,11 +171,12 @@ components/workspaces/store.js (WorkspaceStore → MongoDB)
 ### User
 ```javascript
 {
-  id: string,          // UUID generado
-  name: string,        // Requerido
-  surname: string,     // Requerido
-  email: string,       // Requerido, único, formato válido
-  role: string,       // admin | instructor | visitor (default)
+  _id: ObjectId,    // MongoDB genera automáticamente
+  name: string,    // Requerido
+  surname: string, // Requerido
+  email: string,   // Requerido, único, formato válido
+  role: string,   // admin | instructor | visitor (default)
+  passwordHash: string,
   createdAt: Date
 }
 ```
@@ -184,18 +184,18 @@ components/workspaces/store.js (WorkspaceStore → MongoDB)
 ### Booking
 ```javascript
 {
-  id: string,          // UUID generado
-  workspaceId: string, // Reference to Workspace (preferred) or espacioId
-  usuarioId: string,   // Reference to User
-  startDate: string,   // YYYY-MM-DD
+  _id: ObjectId,         // MongoDB genera automáticamente
+  workspaceId: string,  // ObjectId del Workspace (string)
+  userId: string,        // ObjectId del User (string)
+  startDate: string,     // YYYY-MM-DD
   endDate: string,     // YYYY-MM-DD
   startTime: string,   // HH:mm
   endTime: string,     // HH:mm
-  actividad: string,   // Descripción de la reserva (preferred) or propósito
+  actividad: string,   // Descripción de la reserva
   color: string,       // Color identificativo (default: '#999')
-  days: Array<number>, // Dias de la semana (0-6) que se repite la actividad
+  days: Array,        // Dias de la semana (0-6)
   notes: string,       // Notas opcionales
-  status: string,      // confirmed | cancelled | completed (default: 'confirmed')
+  status: string,      // confirmed | cancelled | completed
   createdAt: Date,
   updatedAt: Date
 }
