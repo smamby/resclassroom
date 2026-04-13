@@ -666,6 +666,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const calendarGrid = document.getElementById('calendarGrid');
         if (calendarGrid) calendarGrid.innerHTML = '';
         await checkLoginStatus();
+        fetchBookingsFromApi()
+          .then(() => { renderCalendar(); populateActivitySelect(); populateWorkspaceSelect(); })
+          .catch(err => console.error('Error refreshing after edit', err));
       });
     }
 

@@ -366,7 +366,7 @@ body::before {
 }
 .activity-header {
   display: inline-flex;
-  align-items: center;
+  align-items: start;
   justify-content: space-between;
   gap: 8px;
 }
@@ -718,6 +718,9 @@ body::before {
 .activity-card .activity-workspace {
     font-size: 0.75rem;
     color: var(--text-muted);
+}
+.card-actions {
+    min-width: 40px;
 }
 
 .empty-day {
