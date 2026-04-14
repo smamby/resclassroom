@@ -77,7 +77,7 @@ body::before {
         height: 72px;
         width: 3000px;
         background: rgb(15, 23, 42);
-        position: absolute;
+        position: fixed;
         top: 0;
         left:-500px;
         z-index: 2;
