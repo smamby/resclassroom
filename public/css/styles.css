@@ -63,11 +63,60 @@ body::before {
     pointer-events: none;
     z-index: -1;
 }
+.back-navbar {
+    display: none;
+}
+@media (min-width: 1200px) {
+    body::before {
+        background:
+            radial-gradient(ellipse 80% 50% at 20% -10%, var(--accent-glow), transparent),
+            radial-gradient(ellipse 60% 40% at 80% 110%, rgba(30, 64, 175, 0.3), transparent);
+    }
+    .back-navbar {
+        display: block;
+        height: 72px;
+        width: 3000px;
+        background: rgb(15, 23, 42);
+        position: absolute;
+        top: 0;
+        left:-500px;
+        z-index: 2;
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border-subtle);
+    }
+}
+@media (max-width: 480px) {
+    /* body::before {
+        background:
+            radial-gradient(ellipse 100% 60% at 50% -20%, var(--accent-glow), transparent);
+    } */
+
+    .navbar-user {
+        width: 140px;
+        gap: 4px;
+    }
+
+    #btnLogin {
+        scale: 0.7;
+    }
+    #btnRegister {
+        scale: 0.7;
+    }
+    #btnLogout {
+        scale: 0.7;
+    }
+    #avatar {
+        display: none;
+    }
+}
+
+
 
 .navbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    height: 72px;
     padding: 1rem 2.5rem;
     background: rgba(15, 23, 42, 0.85);
     backdrop-filter: blur(20px);
@@ -519,16 +568,40 @@ body::before {
 
 /* Large desktops: cap layout to 1200px max and fix 300px aside + 900px calendar */
 @media (min-width: 1200px) {
-  .dashboard {
-    display: grid;
-    grid-template-columns: 1fr 3fr;
-    max-width: 1200px;
-    width: 100%;
-    margin: 0 auto;
-  }
-  .calendar-section { grid-column: 2; grid-row: 1; width: 100%; }
-  .asides-wrapper { grid-column: 1; grid-row: 1; display: grid; grid-template-columns: 1fr; align-self: flex-start; width: 300px; }
-  .calendar-grid { grid-template-columns: repeat(7, minmax(80px, 1fr)); }
+    .dashboard {
+        display: grid;
+        grid-template-columns: 1fr 3fr;
+        max-width: 1200px;
+        width: 100%;
+        margin: 0 auto;
+    }
+    .calendar-section { grid-column: 2; grid-row: 1; width: 100%; }
+    .asides-wrapper { grid-column: 1; grid-row: 1; display: grid; grid-template-columns: 1fr; align-self: flex-start; width: 300px; }
+    .calendar-grid { grid-template-columns: repeat(7, minmax(80px, 1fr)); }
+
+    /* .fab-container {
+        position: fixed;
+        bottom: 2.5rem;
+        right: calc(50vw - 520px);
+        display: none;
+        flex-direction: column-reverse;
+        gap: 16px;
+        z-index: 1000;
+    } */
+
+    .fab-container.show {
+        display: flex;
+        position: fixed;
+        bottom: 2.5rem;
+        right: calc(50vw - 520px);
+        display: none;
+        flex-direction: column-reverse;
+        gap: 16px;
+        z-index: 1000;
+    }
+    #btnNewWorkspace {
+        background: linear-gradient(135deg, #4c3979d8, #332353);
+    }
 }
 
 .calendar-day {
@@ -745,24 +818,34 @@ body::before {
 }
 
 .btn-float {
-    position: fixed;
-    bottom: 2.5rem;
-    right: 2.5rem;
-    width: 64px;
-    height: 64px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark));
     color: white;
     border: none;
-    font-size: 1.75rem;
+    font-size: 1.5rem;
     cursor: pointer;
     box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
     transition: all var(--transition-smooth);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
     animation: floatIn 0.6s ease-out 0.4s both;
+}
+
+.fab-container {
+    position: fixed;
+    bottom: 2.5rem;
+    right: 2.5rem;
+    display: none;
+    flex-direction: column-reverse;
+    gap: 16px;
+    z-index: 1000;
+}
+
+.fab-container.show {
+    display: flex;
 }
 
 @keyframes floatIn {
@@ -1072,6 +1155,11 @@ body::before {
   .sidebar { order: 3; width: 100%; }
 }
 
+@media (max-width: 868px) and (min-width: 480px) {
+    .navbar-user {
+        gap: 0.75rem;
+    }
+}
 @media (max-width: 868px) {
     .dashboard {
         display: flex;
@@ -1100,9 +1188,7 @@ body::before {
         font-size: 1.25rem;
     }
 
-    .navbar-user {
-        gap: 0.75rem;
-    }
+
 
     .user-name {
         font-size: 0.8rem;

@@ -9,20 +9,21 @@
     <meta name="theme-color" content="#0F172A">
 </head>
 <body>
-    
-    <nav class="navbar">
-        <div class="navbar-brand">
-            <img src="/assets/caba_escudo.png" alt="ResClassroom" class="logo">
-            <span class="brand-name">ResClassroom</span>
-        </div>
-        <div class="navbar-user" id="authArea">
-            <span class="user-name" id="userName" style="display:none;">Invitado</span>
-            <button class="btn-login" id="btnLogin">Iniciar Sesión</button>
-            <button class="btn-secondary" id="btnRegister" style="display:none; margin-left:0.5rem;">Registrarse</button>
-            <button class="btn-logout" id="btnLogout" style="display:none; margin-left:0.5rem;">Cerrar Sesión</button>
-            <div id="avatar" class="avatar" hidden aria-label="Avatar de usuario" title="Usuario"></div>
-        </div>
-    </nav>
+    <div class="back-navbar">
+    </div>
+        <nav class="navbar">
+            <div class="navbar-brand">
+                <img src="/assets/caba_escudo.png" alt="ResClassroom" class="logo">
+                <span class="brand-name">ResClassroom</span>
+            </div>
+            <div class="navbar-user" id="authArea">
+                <span class="user-name" id="userName" style="display:none;">Invitado</span>
+                <button class="btn-login" id="btnLogin">Iniciar Sesión</button>
+                <button class="btn-secondary" id="btnRegister" style="display:none; margin-left:0.5rem;">Registrarse</button>
+                <button class="btn-logout" id="btnLogout" style="display:none; margin-left:0.5rem;">Cerrar Sesión</button>
+                <div id="avatar" class="avatar" hidden aria-label="Avatar de usuario" title="Usuario"></div>
+            </div>
+        </nav>
 
     <main class="dashboard">
         <section class="calendar-section" id="calendarSection">
@@ -156,7 +157,10 @@
         </div>
     </div>
 
-    <button class="btn-float" id="btnNewReservation">+</button>
+    <div class="fab-container">
+        <button class="btn-float" id="btnNewWorkspace" title="Crear Espacio">W</button>
+        <button class="btn-float" id="btnNewReservation" title="Nueva Reserva">+</button>
+    </div>
 
     <script src="/js/app.js"></script>
 </body>

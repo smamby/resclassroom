@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const activitySelect = document.getElementById('activitySelect');
     const dayFilter = document.getElementById('dayFilter');
     const btnNewReservation = document.getElementById('btnNewReservation');
+    const btnNewWorkspace = document.getElementById('btnNewWorkspace');
     const reservationModal = document.getElementById('reservationModal');
     const closeModalBtn = document.getElementById('closeModal');
     const reservationForm = document.getElementById('reservationForm');
@@ -102,6 +103,21 @@ document.addEventListener('DOMContentLoaded', () => {
       // Clear stored username if not logged in
       if (!isLogged) sessionStorage.removeItem('username');
       renderAuthUI(isLogged, sessionStorage.getItem('username'));//'Usuario');
+      updateFloatingButtonsVisibility();
+    }
+
+    function updateFloatingButtonsVisibility() {
+      const fabContainer = document.querySelector('.fab-container');
+      if (!fabContainer) return;
+
+      const role = sessionStorage.getItem('role');
+      const isInstructorOrAdmin = role === 'instructor' || role === 'admin';
+
+      if (isInstructorOrAdmin) {
+        fabContainer.classList.add('show');
+      } else {
+        fabContainer.classList.remove('show');
+      }
     }
 
     function renderAuthUI(loggedIn, username) {
@@ -135,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden="true">
               <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5z"/>
             </svg>`;
-          avatar.style.display = 'inline-flex';
+          //avatar.style.display = 'inline-flex';
         }
       } else {
         if (userNameEl) {
@@ -146,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnLogout) btnLogout.style.display = 'none';
         if (avatar) { avatar.hidden = true; avatar.innerHTML = ''; }
       }
+      updateFloatingButtonsVisibility();
     }
 
     function renderCalendar() {
@@ -485,6 +502,126 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    btnNewWorkspace.addEventListener('click', async () => {
+      const role = sessionStorage.getItem('role');
+      const userId = sessionStorage.getItem('userId');
+
+      if (!userId) {
+        alert('Debes iniciar sesión para crear un espacio');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/users/${userId}`, { credentials: 'include' });
+        if (!res.ok) {
+          alert('Error al verificar permisos');
+          return;
+        }
+        const user = await res.json();
+
+        if (user.role !== 'instructor' && user.role !== 'admin') {
+          alert('No tienes permisos para crear espacios');
+          return;
+        }
+
+        createWorkspaceModal();
+      } catch (err) {
+        console.error('Error verificando rol:', err);
+        alert('Error al verificar permisos');
+      }
+    });
+
+    function createWorkspaceModal() {
+      const modal = document.createElement('div');
+      modal.id = 'workspaceModal';
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <div class="modal-content">
+          <span class="modal-close" id="workspaceClose">&times;</span>
+          <h2>Crear Espacio</h2>
+          <form id="workspaceForm" class="form-group" style="display:flex;flex-direction:column;gap:1rem;">
+            <div class="form-group">
+              <label>Nombre</label>
+              <input id="wsName" placeholder="Nombre del espacio" required />
+            </div>
+            <div class="form-group">
+              <label>Tipo</label>
+              <input id="wsType" required list="workspaceTypes" placeholder="Tipo de espacio" />
+              <datalist id="workspaceTypes">
+                <option value="Aula"></option>
+                <option value="Muro"></option>
+                <option value="Espacio social"></option>
+                <option value="Gym"></option>
+              </datalist>
+            </div>
+            <div class="form-group">
+              <label>Capacidad</label>
+              <input id="wsCapacity" type="number" min="1" placeholder="Número de personas" required />
+            </div>
+            <div class="form-group">
+              <label>Ubicación</label>
+              <input id="wsLocation" list="locationOptions" placeholder="Edificio, piso, etc." />
+              <datalist id="locationOptions">
+                <option value="Rivadavia 1255"></option>
+                <option value="Bucareli 1247"></option>
+                <option value="Sede ICABA"></option>
+                <option value="Palestra"></option>
+              </datalist>
+            </div>
+            <div class="form-group">
+              <label>Equipamiento</label>
+              <input id="wsEquipment" placeholder="Proyector, pizarra, etc. (separar con coma)" />
+            </div>
+            <button type="submit" class="btn-primary">Crear Espacio</button>
+          </form>
+        </div>`;
+      document.body.appendChild(modal);
+      document.getElementById('wsName').focus();
+
+      document.getElementById('workspaceClose').addEventListener('click', () => modal.remove());
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+      document.getElementById('workspaceForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const equipmentStr = document.getElementById('wsEquipment').value;
+        const equipment = equipmentStr
+          ? equipmentStr.split(',').map(s => s.trim()).filter(s => s !== '')
+          : [];
+
+        const payload = {
+          name: document.getElementById('wsName').value,
+          type: document.getElementById('wsType').value,
+          capacity: parseInt(document.getElementById('wsCapacity').value),
+          location: document.getElementById('wsLocation').value,
+          equipment: equipment,
+          createdBy: sessionStorage.getItem('userId')
+        };
+
+        try {
+          const res = await fetch('/workspaces', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            alert('Espacio creado exitosamente');
+            modal.remove();
+            populateWorkspaceSelect();
+            fetchWorkspacesFromApi();
+          } else {
+            alert('Error: ' + (data.error || 'No se pudo crear el espacio'));
+          }
+        } catch (err) {
+          alert('Error de conexión: ' + err);
+        }
+      });
+    }
+
     closeModalBtn.addEventListener('click', () => {
         reservationModal.classList.add('hidden');
     });
@@ -646,6 +783,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </form>
           </div>`;
         document.body.appendChild(modal);
+        document.getElementById('loginEmail').focus();
 
         // close handlers
         document.getElementById('loginClose').addEventListener('click', () => modal.remove());
@@ -711,6 +849,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </form>
         </div>`;
       document.body.appendChild(modal);
+      document.getElementById('forgotEmail').focus();
 
       document.getElementById('forgotClose').addEventListener('click', () => modal.remove());
       modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
@@ -751,6 +890,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionStorage.removeItem('username');
         sessionStorage.removeItem('role');
         sessionStorage.removeItem('userId');
+        updateFloatingButtonsVisibility();
         // Clear UI cards and details view
         const dayActivitiesEl = document.getElementById('dayActivities');
         if (dayActivitiesEl) dayActivitiesEl.innerHTML = '';
@@ -806,6 +946,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </form>
         </div>`;
       document.body.appendChild(modal);
+      document.getElementById('regName').focus();
 
       // close handlers
       document.getElementById('registerClose').addEventListener('click', () => modal.remove());
