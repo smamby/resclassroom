@@ -75,7 +75,7 @@ body::before {
     .back-navbar {
         display: block;
         height: 72px;
-        width: 3000px;
+        width: 6000px;
         background: rgb(15, 23, 42);
         position: fixed;
         top: 0;
