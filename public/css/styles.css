@@ -846,6 +846,14 @@ body::before {
 
 .fab-container.show {
     display: flex;
+
+}
+@media (min-height: 950px) {
+    .fab-container.show {
+        display: flex;
+        bottom: calc(100vh - 910px);
+
+    }
 }
 
 @keyframes floatIn {
