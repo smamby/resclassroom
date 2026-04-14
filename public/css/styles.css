@@ -186,6 +186,10 @@ body::before {
     transform: translateY(-2px);
     box-shadow: 0 6px 25px rgba(59, 130, 246, 0.4);
 }
+#forgotPassword {
+    text-decoration: none;
+    color: #0d90e7;
+}
 
 /* Secondary action (Registrarse) - bold, distinct color to contrast with dark UI */
 .btn-secondary {

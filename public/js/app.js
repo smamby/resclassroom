@@ -28,8 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Prefer the business id field first when available, fallback to _id
         workspacesFromApi = data.map(ws => ({ id: ws._id, name: ws.name, location: ws.location || '' }));
         // Build a lookup map by id with name and location
-        workspacesFromApi.forEach(ws => { 
-          workspacesById[ws.id] = { name: ws.name, location: ws.location || '' }; 
+        workspacesFromApi.forEach(ws => {
+          workspacesById[ws.id] = { name: ws.name, location: ws.location || '' };
         });
       } catch (e) {
         workspacesFromApi = [];
@@ -640,6 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="form-group">
                 <label>Password</label>
                 <input id="loginPassword" placeholder="Password" type="password" required />
+                <button type="button" id="forgotPasswordBtn" style="background:none;border:none;color:#4A90D9;cursor:pointer;font-size:0.9em;margin-left:4px;text-decoration:underline;">¿Olvidaste tu contraseña?</button>
               </div>
               <button type="submit" class="btn-primary">Iniciar sesión</button>
             </form>
@@ -681,6 +682,60 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     });
+
+    // Forgot password modal
+    document.addEventListener('click', (e) => {
+      if (e.target && e.target.id === 'forgotPasswordBtn') {
+        e.preventDefault();
+        const loginModal = document.getElementById('loginModal');
+        if (loginModal) loginModal.remove();
+        createForgotPasswordModal();
+      }
+    });
+
+    function createForgotPasswordModal() {
+      const modal = document.createElement('div');
+      modal.id = 'forgotPasswordModal';
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <div class="modal-content">
+          <span class="modal-close" id="forgotClose">&times;</span>
+          <h2>Recuperar Contraseña</h2>
+          <p style="color:#666;margin-bottom:1rem;">Ingresa tu email y recibirás un enlace para cambiar tu contraseña.</p>
+          <form id="forgotForm" class="form-group" style="display:flex;flex-direction:column;gap:1rem;">
+            <div class="form-group">
+              <label>Email</label>
+              <input id="forgotEmail" placeholder="tu@email.com" type="email" required />
+            </div>
+            <button type="submit" class="btn-primary">Enviar enlace</button>
+          </form>
+        </div>`;
+      document.body.appendChild(modal);
+
+      document.getElementById('forgotClose').addEventListener('click', () => modal.remove());
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+      document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('forgotEmail').value;
+        try {
+          const res = await fetch('/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            alert('Si el correo existe, recibirás instrucciones.');
+            modal.remove();
+          } else {
+            alert('Error: ' + (data.error || 'Intenta de nuevo'));
+          }
+        } catch (err) {
+          alert('Error: ' + err);
+        }
+      });
+    }
 
     // Logout button handling
     const btnLogoutEl = document.getElementById('btnLogout');

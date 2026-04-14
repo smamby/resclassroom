@@ -29,6 +29,10 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
+app.get('/reset-password/:token', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'reset-password.html'));
+});
+
 const startServer = async () => {
     try {
         await connectToDatabase();

@@ -34,11 +34,13 @@ class User {
     this.role = data.role || ROLES.VISITOR;
     // Password hash (for login) - store if provided, and hide in JSON output
     this.passwordHash = data.passwordHash;
+    this.resetPasswordToken = data.resetPasswordToken || null;
+    this.resetPasswordExpires = data.resetPasswordExpires || null;
     this.createdAt = data.createdAt || new Date();
   }
 
   toJSON() {
-    const { passwordHash, ...rest } = this;
+    const { passwordHash, resetPasswordToken, ...rest } = this;
     return rest;
   }
 }
