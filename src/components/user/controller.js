@@ -9,19 +9,26 @@ class UserController {
   async promoteUser(req, res) {
     try {
       const requester = req.user;
-      if (!requester || requester.role !== 'admin') {
+      if (!requester || !Array.isArray(requester.role) || !requester.role.includes('admin')) {
         return res.status(403).json({ error: 'Forbidden' });
       }
       const { id } = req.params;
-      const { role } = req.body; // expected 'guest' or 'instructor'
-      const allowed = ['guest', 'instructor'];
-      const newRole = allowed.includes(role) ? role : 'guest';
-      const updated = await this.store.update(id, { role: newRole, updatedAt: new Date() });
-      if (updated) {
-        res.status(200).json(updated.value || updated);
-      } else {
-        res.status(404).json({ error: 'User not found' });
+      const { role } = req.body;
+      const allowed = ['instructor'];
+      if (!allowed.includes(role)) {
+        return res.status(400).json({ error: 'Invalid role' });
       }
+      const user = await this.store.findById(id);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      const currentRoles = Array.isArray(user.role) ? user.role : ['visitor'];
+      if (!currentRoles.includes(role)) {
+        const newRoles = [...currentRoles, role];
+        await this.store.update(id, { role: newRoles, updatedAt: new Date() });
+      }
+      const updated = await this.store.findById(id);
+      res.status(200).json(updated);
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
