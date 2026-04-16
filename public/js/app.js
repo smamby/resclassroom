@@ -110,8 +110,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const fabContainer = document.querySelector('.fab-container');
       if (!fabContainer) return;
 
-      const role = sessionStorage.getItem('role');
-      const isInstructorOrAdmin = role === 'instructor' || role === 'admin';
+      const rolesJson = sessionStorage.getItem('roles');
+      const roles = rolesJson ? JSON.parse(rolesJson) : [];
+      const isInstructorOrAdmin = roles.includes('instructor') || roles.includes('admin');
 
       if (isInstructorOrAdmin) {
         fabContainer.classList.add('show');
@@ -273,11 +274,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .map(act => {
               // Determine edit permission for this booking turn
               const canEdit = (function() {
-                let role = (sessionStorage.getItem('role') || 'visitor').toString().toLowerCase();
+                const rolesJson = sessionStorage.getItem('roles');
+                const roles = rolesJson ? JSON.parse(rolesJson) : ['visitor'];
                 const uid = String(sessionStorage.getItem('userId') || '');
-                console.log('[BOOKING-UI] canEdit check', act?.id, 'role=', role, 'uid=', uid, 'createdBy=', act?.createdByUserId);
-                if (role === 'admin') return true;
-                if (role === 'instructor' && String(act.createdByUserId) === String(uid)) return true;
+                console.log('[BOOKING-UI] canEdit check', act?.id, 'roles=', roles, 'uid=', uid, 'createdBy=', act?.createdByUserId);
+                if (roles.includes('admin')) return true;
+                if (roles.includes('instructor') && String(act.createdByUserId) === String(uid)) return true;
                 return false;
               })();
               const editIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L9 9l3.75 3.75 7-7z\"/></svg>`;
@@ -519,7 +521,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const user = await res.json();
 
-        if (user.role !== 'instructor' && user.role !== 'admin') {
+        const userRoles = Array.isArray(user.role) ? user.role : [];
+        if (!userRoles.includes('instructor') && !userRoles.includes('admin')) {
           alert('No tienes permisos para crear espacios');
           return;
         }
@@ -805,8 +808,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (res.ok) {
                 // alert('Login exitoso');
+                const roles = Array.isArray(data.user?.role) ? data.user.role : [data.user?.role || 'visitor'];
                 sessionStorage.setItem('username', data.user?.name || 'Usuario');
-                sessionStorage.setItem('role', data.user?.role || 'visitor');
+                sessionStorage.setItem('roles', JSON.stringify(roles));
                 sessionStorage.setItem('userId', data.user?._id || data.user?.id || '');
                 console.log('Login successful, user:', data.user);
                 modal.remove();
@@ -888,7 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('loggedIn', 'false');
         // Clear session and UI state
         sessionStorage.removeItem('username');
-        sessionStorage.removeItem('role');
+        sessionStorage.removeItem('roles');
         sessionStorage.removeItem('userId');
         updateFloatingButtonsVisibility();
         // Clear UI cards and details view
