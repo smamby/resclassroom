@@ -505,7 +505,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnNewWorkspace.addEventListener('click', async () => {
-      const role = sessionStorage.getItem('role');
       const userId = sessionStorage.getItem('userId');
 
       if (!userId) {
