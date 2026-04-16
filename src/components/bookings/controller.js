@@ -162,7 +162,7 @@ class BookingController {
     try {
       // Authentication/authorization
       const user = req.user;
-      if (!user || !['admin', 'instructor'].includes(user.role)) {
+      if (!user || !Array.isArray(user.role) || !user.role.some(r => ['admin', 'instructor'].includes(r))) {
         return res.status(403).json({ error: 'Unauthorized to create bookings' });
       }
 
@@ -246,18 +246,20 @@ class BookingController {
       }
 
       // Authorization: positive check - admin OR (instructor AND owner)
+      const userRoles = Array.isArray(user.role) ? user.role : [];
       const canModify =
-        user.role === 'admin' ||
-        (user.role === 'instructor' && String(existing.userId) === String(user.id));
+        userRoles.includes('admin') ||
+        (userRoles.includes('instructor') && String(existing.userId) === String(user.id));
       if (!canModify) {
         return res.status(403).json({ error: 'Insufficient privileges to modify this booking' });
       }
 
       // Verify admin claim in DB to prevent sessionStorage manipulation
-      if (user.role === 'admin') {
+      if (userRoles.includes('admin')) {
         const userStore = new UserStore();
         const dbUser = await userStore.findById(user.id);
-        if (!dbUser || dbUser.role !== 'admin') {
+        const dbRoles = Array.isArray(dbUser.role) ? dbUser.role : [];
+        if (!dbUser || !dbRoles.includes('admin')) {
           return res.status(403).json({ error: 'Invalid admin credentials' });
         }
       }
@@ -334,18 +336,20 @@ class BookingController {
         return res.status(404).json({ error: 'Booking not found' });
       }
       // Authorization: positive check - admin OR (instructor AND owner)
+      const userRoles = Array.isArray(user.role) ? user.role : [];
       const canDelete =
-        user.role === 'admin' ||
-        (user.role === 'instructor' && String(existing.userId) === String(user.id));
+        userRoles.includes('admin') ||
+        (userRoles.includes('instructor') && String(existing.userId) === String(user.id));
       if (!canDelete) {
         return res.status(403).json({ error: 'Insufficient privileges to delete this booking' });
       }
 
       // Verify admin claim in DB to prevent sessionStorage manipulation
-      if (user.role === 'admin') {
+      if (userRoles.includes('admin')) {
         const userStore = new UserStore();
         const dbUser = await userStore.findById(user.id);
-        if (!dbUser || dbUser.role !== 'admin') {
+        const dbRoles = Array.isArray(dbUser.role) ? dbUser.role : [];
+        if (!dbUser || !dbRoles.includes('admin')) {
           return res.status(403).json({ error: 'Invalid admin credentials' });
         }
       }
