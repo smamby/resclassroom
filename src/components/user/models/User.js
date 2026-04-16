@@ -23,15 +23,21 @@ class User {
       throw new Error('Invalid email format');
     }
     
-    if (data.role && !Object.values(ROLES).includes(data.role)) {
-      throw new Error(`Invalid role. Must be one of: ${Object.values(ROLES).join(', ')}`);
+    if (data.role) {
+      if (!Array.isArray(data.role)) {
+        data.role = [data.role];
+      }
+      const invalidRoles = data.role.filter(r => !Object.values(ROLES).includes(r));
+      if (invalidRoles.length > 0) {
+        throw new Error(`Invalid roles: ${invalidRoles.join(', ')}. Must be one of: ${Object.values(ROLES).join(', ')}`);
+      }
     }
     
     this._id = data._id;
     this.name = data.name.trim();
     this.surname = data.surname.trim();
     this.email = data.email.trim().toLowerCase();
-    this.role = data.role || ROLES.VISITOR;
+    this.role = Array.isArray(data.role) ? data.role : [ROLES.VISITOR];
     // Password hash (for login) - store if provided, and hide in JSON output
     this.passwordHash = data.passwordHash;
     this.resetPasswordToken = data.resetPasswordToken || null;
