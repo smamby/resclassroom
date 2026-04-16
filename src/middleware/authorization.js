@@ -1,6 +1,6 @@
 function requireRole(roles) {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user || !Array.isArray(req.user.role) || !req.user.role.some(r => roles.includes(r))) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     next();
