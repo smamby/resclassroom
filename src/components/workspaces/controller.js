@@ -8,6 +8,10 @@ class WorkspaceController {
 
   async createWorkspace(req, res) {
     try {
+      const user = req.user;
+      if (!user || !Array.isArray(user.role) || !user.role.some(r => ['admin', 'instructor'].includes(r))) {
+        return res.status(403).json({ error: 'Unauthorized to create workspaces' });
+      }
       const workspaceData = {
         ...req.body,
         createdAt: new Date()
