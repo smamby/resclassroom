@@ -21,8 +21,8 @@ function authenticate(req, res, next) {
       return next();
     }
     const payload = verify(token, SECRET);
-    // userId es ahora un string del ObjectId
-    req.user = { id: String(payload.userId), role: payload.role };
+    const roles = Array.isArray(payload.role) ? payload.role : [payload.role];
+    req.user = { id: String(payload.userId), role: roles };
     next();
   } catch (err) {
     res.status(401).json({ error: 'Invalid authentication token' });
