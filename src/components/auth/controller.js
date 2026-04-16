@@ -42,8 +42,8 @@ class AuthController {
       };
       const user = new User(userData);
       const created = await this.store.create(user);
-      // Issue token
-      const token = sign({ userId: String(created._id), role: created.role }, SECRET, { expiresIn: '1h' });
+      const roles = Array.isArray(created.role) ? created.role : [created.role];
+      const token = sign({ userId: String(created._id), role: roles }, SECRET, { expiresIn: '1h' });
       // Send token as HttpOnly cookie
       res.cookie('tokenAuth', token, { httpOnly: true, sameSite: 'lax' });
       res.status(201).json({ user: created });
@@ -68,15 +68,15 @@ class AuthController {
       if (!valid) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
-      const token = sign({ userId: String(user._id), role: user.role }, SECRET, { expiresIn: '20m' });
+      const userRoles = Array.isArray(user.role) ? user.role : [user.role];
+      const token = sign({ userId: String(user._id), role: userRoles }, SECRET, { expiresIn: '20m' });
       res.cookie('tokenAuth', token, { httpOnly: true, sameSite: 'lax' });
-      // Sanitize user object for the response to avoid leaking passwordHash
       const sanitizedUser = {
         _id: user._id,
         name: user.name,
         surname: user.surname,
         email: user.email,
-        role: user.role,
+        role: userRoles,
         createdAt: user.createdAt
       };
       res.status(200).json({ user: sanitizedUser });
