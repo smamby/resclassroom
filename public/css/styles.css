@@ -66,7 +66,27 @@ body::before {
 .back-navbar {
     display: none;
 }
+
 @media (min-width: 1200px) {
+    .calendar-grid {
+        grid-template-columns: repeat(7, minmax(120px, 1fr));
+    }
+    /* Cap overall calendar width to keep aside widths aligned */
+    .calendar-section {
+        width: 1100px;
+        margin: 0 auto;
+    }
+    .asides-wrapper {
+        width: 1100px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+    /* Center the calendar and asides in the middle column on very wide screens */
+    .calendar-section { grid-column: 2; }
+    .asides-wrapper { grid-column: 2; grid-row: 2; }
+
     body::before {
         background:
             radial-gradient(ellipse 80% 50% at 20% -10%, var(--accent-glow), transparent),
@@ -85,31 +105,6 @@ body::before {
         border-bottom: 1px solid var(--border-subtle);
     }
 }
-@media (max-width: 480px) {
-    /* body::before {
-        background:
-            radial-gradient(ellipse 100% 60% at 50% -20%, var(--accent-glow), transparent);
-    } */
-
-    .navbar-user {
-        width: 140px;
-        gap: 4px;
-    }
-
-    #btnLogin {
-        scale: 0.7;
-    }
-    #btnRegister {
-        scale: 0.7;
-    }
-    #btnLogout {
-        scale: 0.7;
-    }
-    #avatar {
-        display: none;
-    }
-}
-
 
 
 .navbar {
@@ -276,19 +271,21 @@ body::before {
     box-shadow: 0 8px 22px rgba(225, 29, 72, 0.5);
 }
 
-/* Avatar in navbar (shown only when logged in) */
-.avatar {
+/* menu in navbar (shown only when logged in) */
+.menu {
     width: 38px;
     height: 38px;
-    border-radius: 50%;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(circle at 30% 30%, #4B9CFB 0%, #1F2A44 60%);
-    box-shadow: 0 4px 14px rgba(0,0,0,.35);
     color: white;
     margin-left: 0.5rem;
-    cursor: default;
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+}
+.menu:hover {
+    transform: translateY(-1px);
+    scale: 1.2;
 }
 
 .btn-login:hover::before {
@@ -512,26 +509,7 @@ body::before {
 }
 
 /* Prevent calendar cells from shrinking on wide desktops and enable responsive layout */
-@media (min-width: 1200px) {
-  .calendar-grid {
-    grid-template-columns: repeat(7, minmax(120px, 1fr));
-  }
-  /* Cap overall calendar width to keep aside widths aligned */
-  .calendar-section {
-    width: 1100px;
-    margin: 0 auto;
-  }
-  .asides-wrapper {
-    width: 1100px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-  /* Center the calendar and asides in the middle column on very wide screens */
-  .calendar-section { grid-column: 2; }
-  .asides-wrapper { grid-column: 2; grid-row: 2; }
-}
+
 
 /* Responsive: stack calendar full width on mid screens and place side panels underneath, side-by-side */
 /* Adjustments for mid-size screens (900px - 1199px) and smaller (<=899px) handled separately below */
@@ -833,6 +811,18 @@ body::before {
     justify-content: center;
     animation: floatIn 0.6s ease-out 0.4s both;
 }
+#btnNewWorkspace {
+    background: linear-gradient(135deg, #4c3979d8, #332353);
+}
+
+.btn-float:hover {
+    scale: 1.1;
+    transform: translateY(-3px);
+}
+
+.btn-float:active {
+    transform: scale(0.95);
+}
 
 .fab-container {
     position: fixed;
@@ -867,14 +857,6 @@ body::before {
     }
 }
 
-.btn-float:hover {
-    transform: scale(1.1) translateY(-4px);
-    box-shadow: 0 12px 40px rgba(59, 130, 246, 0.5);
-}
-
-.btn-float:active {
-    transform: scale(0.95);
-}
 
 .modal {
     position: fixed;
@@ -1303,6 +1285,41 @@ body::before {
     .form-row {
         grid-template-columns: 1fr;
     }
+}
+
+@media (max-width: 480px) {
+    /* body::before {
+        background:
+            radial-gradient(ellipse 100% 60% at 50% -20%, var(--accent-glow), transparent);
+    } */
+    .navbar {
+        display: flex;
+        justify-content: space-between;
+    }
+    .brand-name {
+        font-size: 1rem;
+    }
+    .navbar-user {
+        display: flex;
+        width: 180px;
+        gap: 0px;
+        justify-content: end;
+    }
+
+    #btnLogin {
+        scale: 0.7;
+    }
+    #btnRegister {
+        scale: 0.7;
+        margin-left: 0 !important;
+    }
+    #btnLogout {
+        scale: 0.7;
+        margin-left: 0;
+    }
+    /* #menu {
+        display: none;
+    } */
 }
 
 @media (max-width: 420px) {
