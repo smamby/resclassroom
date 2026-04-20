@@ -61,7 +61,7 @@ class BookingStore {
     return result.deletedCount > 0;
   }
 
-  // Find bookings by workspace (excluding expired ones)
+// Find bookings by workspace (excluding expired ones)
   async findByWorkspace(workspaceId) {
     const db = getDb();
     const collection = db.collection('bookings');
@@ -75,6 +75,13 @@ class BookingStore {
         { endDate: null }
       ]
     }).toArray();
+  }
+
+  // Find all bookings by workspace (no date filter - for overlap checking)
+  async findByWorkspaceAll(workspaceId) {
+    const db = getDb();
+    const collection = db.collection('bookings');
+    return await collection.find({ workspaceId }).toArray();
   }
 
   // Extra helper to find bookings by workspace and date for solape checks

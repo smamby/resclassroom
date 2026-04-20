@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const BookingController = require('./controller');
+const auth = require('../../middleware/authMiddleware');
 
 const router = Router();
 let _controller;
@@ -11,16 +12,22 @@ function getController() {
   return _controller;
 }
 
-// List all bookings or create a new booking
+// Public: List all bookings (for visitors - no auth required)
 router.get('/', (req, res) => getController().getAllBookings(req, res));
-router.post('/', (req, res) => getController().createBooking(req, res));
 
-// Get bookings by workspace (excluding expired)
+// Protected: Create booking (instructor/admin only)
+router.post('/', auth.authenticate, (req, res) => getController().createBooking(req, res));
+
+// Public: Get bookings by workspace (for visitors)
 router.get('/workspace/:workspaceId', (req, res) => getController().getBookingsByWorkspace(req, res));
 
-// Operations on a single booking
+// Public: Get single booking (for visitors)
 router.get('/:id', (req, res) => getController().getBookingById(req, res));
-router.put('/:id', (req, res) => getController().updateBooking(req, res));
-router.delete('/:id', (req, res) => getController().deleteBooking(req, res));
+
+// Protected: Update booking (auth + ownership check in controller)
+router.put('/:id', auth.authenticate, (req, res) => getController().updateBooking(req, res));
+
+// Protected: Delete booking (auth + ownership check in controller)
+router.delete('/:id', auth.authenticate, (req, res) => getController().deleteBooking(req, res));
 
 module.exports = router;

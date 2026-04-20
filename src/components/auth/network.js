@@ -19,10 +19,11 @@ const loginLimiter = rateLimit({
     standardHeaders: true, // Retorna headers RateLimit-*
     legacyHeaders: false,
     // Identificador único por IP + email (opcional, más preciso)
-    keyGenerator: (req) => {
-        const email = req.body?.email || 'unknown';
-        return `${req.ip}:${email}`;
-    },
+    keyGenerator: rateLimit.ipKeyGenerator,
+    // keyGenerator: (req) => {
+    //     const email = req.body?.email || 'unknown';
+    //     return `${req.ip}:${email}`;
+    // },
     // No contar los intentos exitosos (opcional)
     skipSuccessfulRequests: true
 });

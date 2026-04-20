@@ -44,20 +44,20 @@ class BookingController {
       return [];
     }
     
-    // Parse usando el mismo approach que createBooking (fecha local)
+    // Parse usando UTC para consistencia con _dowUTC
     const s = eb.startDate.split('-').map(n => parseInt(n, 10));
     const e = eb.endDate.split('-').map(n => parseInt(n, 10));
-    let cur = new Date(s[0], s[1] - 1, s[2]);
-    const end = new Date(e[0], e[1] - 1, e[2]);
+    let cur = new Date(Date.UTC(s[0], s[1] - 1, s[2]));
+    const end = new Date(Date.UTC(e[0], e[1] - 1, e[2]));
     
     const desiredDays = Array.isArray(eb.days) ? eb.days : [];
     while (cur <= end) {
-      const dow = cur.getDay();
+      const dow = cur.getUTCDay();
       if (desiredDays.length === 0 || desiredDays.includes(dow)) {
-        const ds = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+        const ds = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, '0')}-${String(cur.getUTCDate()).padStart(2, '0')}`;
         dates.push(ds);
       }
-      cur.setDate(cur.getDate() + 1);
+      cur.setUTCDate(cur.getUTCDate() + 1);
     }
     return dates;
   }
@@ -76,7 +76,7 @@ class BookingController {
   // Verifica solapamiento de horarios para una reserva
   // Retorna mensaje de error si hay conflicto, null si no hay
   async checkOverlap(workspaceId, dateList, days, startTime, endTime, excludeBookingId = null) {
-    const bookings = await this.store.findByWorkspace(workspaceId);
+    const bookings = await this.store.findByWorkspaceAll(workspaceId);
     const newDaysSet = new Set(days.map(d => Number(d)));
     
     for (const eb of bookings) {
@@ -91,13 +91,12 @@ class BookingController {
         const dowUTC = this._dowUTC(dateStr);
         if (ebDaysSet.size > 0 && !ebDaysSet.has(dowUTC)) continue;
         
-        const newStart = new Date(dateStr + 'T' + startTime + ':00');
-        const newEnd = new Date(dateStr + 'T' + endTime + ':00');
-        const es = new Date(dateStr + 'T' + eb.startTime + ':00');
-        const ee = new Date(dateStr + 'T' + eb.endTime + ':00');
+        const newStart = Date.parse(dateStr + 'T' + startTime + ':00');
+        const newEnd = Date.parse(dateStr + 'T' + endTime + ':00');
+        const es = Date.parse(dateStr + 'T' + eb.startTime + ':00');
+        const ee = Date.parse(dateStr + 'T' + eb.endTime + ':00');
         
         if (newStart < ee && newEnd > es) {
-          // Mensaje simplificado sin ID
           return `Solape el ${dateStr} de ${startTime} a ${endTime}`;
         }
       }

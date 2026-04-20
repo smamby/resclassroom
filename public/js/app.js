@@ -369,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!bookingId) return;
             try {
               const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
-              if (!res.ok) return alert('No se pudo obtener la reserva');
+              if (!res.ok) return aviso('No se pudo obtener la reserva');
               const booking = await res.json();
               showEditModal(booking);
             } catch (err) {
@@ -401,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
               } else {
                 const err = await res.json();
-                alert('Error al eliminar: ' + (err?.error || 'desconocido'));
+                aviso('Error al eliminar: ' + (err?.error || 'desconocido'));
               }
             } catch (err) {
               console.error('Error deleting booking', err);
@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Ensure the submit button reflects edit mode
         const submitBtn = document.querySelector('#reservationModal .modal-content button[type="submit"]');
         if (submitBtn) submitBtn.textContent = 'Guardar';
-        console.log('[BOOKING EDIT] loading booking', booking);
+        //console.log('[BOOKING EDIT] loading booking', booking);
         document.getElementById('resWorkspace').value = booking.workspaceId || '';
         document.getElementById('resActivity').value = booking.actividad || '';
         document.getElementById('resColor').value = booking.color || '#3B82F6';
@@ -441,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ? rawId.toString()
           : String(rawId);
         reservationForm.dataset.editId = editId;
-        console.log('[BOOKING EDIT] set editId', editId);
+        //console.log('[BOOKING EDIT] set editId', editId);
     }
 
     // Global handlers for inline onclick actions (used by inline onclick in buttons)
@@ -449,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!bookingId) return;
       try {
         const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
-        if (!res.ok) { alert('No se pudo obtener la reserva'); return; }
+        if (!res.ok) { aviso('No se pudo obtener la reserva'); return; }
         const booking = await res.json();
         showEditModal(booking);
       } catch (err) {
@@ -458,7 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     window.handleDeleteClick = async function(bookingId) {
       if (!bookingId) return;
-      if (!confirm('¿Seguro que quieres eliminar esta reserva?')) return;
+      if (!await confirmar('¿Seguro que quieres eliminar esta reserva?')) return;
       try {
         const res = await fetch(`/bookings/${bookingId}`, { method: 'DELETE', credentials: 'include' });
         if (res.ok) {
@@ -476,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         } else {
           const err = await res.json();
-          alert('Error al eliminar: ' + (err?.error || 'desconocido'));
+          aviso('Error al eliminar: ' + (err?.error || 'desconocido'));
         }
       } catch (err) {
         console.error('Error deleting booking (handleDeleteClick)', err);
@@ -519,28 +519,28 @@ document.addEventListener('DOMContentLoaded', () => {
       const userId = sessionStorage.getItem('userId');
 
       if (!userId) {
-        alert('Debes iniciar sesión para crear un espacio');
+        aviso('Debes iniciar sesión para crear un espacio');
         return;
       }
 
       try {
         const res = await fetch(`/users/${userId}`, { credentials: 'include' });
         if (!res.ok) {
-          alert('Error al verificar permisos');
+          aviso('Error al verificar permisos');
           return;
         }
         const user = await res.json();
 
         const userRoles = Array.isArray(user.role) ? user.role : [];
         if (!userRoles.includes('instructor') && !userRoles.includes('admin')) {
-          alert('No tienes permisos para crear espacios');
+          aviso('No tienes permisos para crear espacios');
           return;
         }
 
         createWorkspaceModal();
       } catch (err) {
         console.error('Error verificando rol:', err);
-        alert('Error al verificar permisos');
+        aviso('Error al verificar permisos');
       }
     });
 
@@ -622,15 +622,15 @@ document.addEventListener('DOMContentLoaded', () => {
           const data = await res.json();
 
           if (res.ok) {
-            alert('Espacio creado exitosamente');
+            aviso('Espacio creado exitosamente');
             modal.remove();
             populateWorkspaceSelect();
             fetchWorkspacesFromApi();
           } else {
-            alert('Error: ' + (data.error || 'No se pudo crear el espacio'));
+            aviso('Error: ' + (data.error || 'No se pudo crear el espacio'));
           }
         } catch (err) {
-          alert('Error de conexión: ' + err);
+          aviso('Error de conexión: ' + err);
         }
       });
     }
@@ -654,7 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectedDays = Array.from(document.querySelectorAll('input[name="days"]:checked'))
                 .map(cb => parseInt(cb.value));
             if (selectedDays.length === 0) {
-                alert('Selecciona al menos un día de la semana');
+                aviso('Selecciona al menos un día de la semana');
                 return;
             }
             const payload = {
@@ -698,10 +698,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     .catch(err => console.error('Error refreshing after edit', err));
                 } else {
                   const errMsg = (result && result.error) ? result.error : 'No se pudo guardar la reserva (posible problema de permisos)';
-                  alert('Error: ' + errMsg);
+                  aviso('Error: ' + errMsg);
                 }
             }).catch(err => {
-              alert('Error al guardar la reserva: ' + (err?.message || err));
+              aviso('Error al guardar la reserva: ' + (err?.message || err));
             });
         } else {
             // Create new booking (existing flow)
@@ -709,7 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .map(cb => parseInt(cb.value));
 
             if (selectedDays.length === 0) {
-                alert('Selecciona al menos un día de la semana');
+                aviso('Selecciona al menos un día de la semana');
                 return;
             }
 
@@ -741,7 +741,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             api.createBooking(payload).then(result => {
               if (result && (result._id || result.insertedId)) {
-                alert('Reserva creada con éxito');
+                aviso('Reserva creada con éxito');
                 reservationModal.classList.add('hidden');
                 reservationForm.reset();
                 // Auto-refresh bookings and UI to reflect the newly created reservation
@@ -763,12 +763,12 @@ document.addEventListener('DOMContentLoaded', () => {
                   });
             } else if (result && result.error) {
               // Creation errors can be surfaced as a generic message to avoid leaking backend specifics
-              alert('Error al crear la reserva: ' + (result.error || 'Desconocido'));
+              aviso('Error al crear la reserva: ' + (result.error || 'Desconocido'));
               } else {
-              alert('Error al crear la reserva');
+              aviso('Error al crear la reserva');
             }
             }).catch(err => {
-              alert('Error al crear: ' + (err?.message || err));
+              aviso('Error al crear: ' + (err?.message || err));
             });
         }
     });
@@ -808,7 +808,7 @@ document.addEventListener('DOMContentLoaded', () => {
             password: document.getElementById('loginPassword').value
           };
           if (!payload.email.includes('@')) {
-            alert('Email inválido');
+            aviso('Email inválido');
             return false;
           }
 
@@ -821,20 +821,20 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
             if (res.ok) {
-                // alert('Login exitoso');
+                // aviso('Login exitoso');
                 const roles = Array.isArray(data.user?.role) ? data.user.role : [data.user?.role || 'visitor'];
                 sessionStorage.setItem('username', data.user?.name || 'Usuario');
                 sessionStorage.setItem('roles', JSON.stringify(roles));
                 sessionStorage.setItem('userId', data.user?._id || data.user?.id || '');
-                console.log('Login successful, user:', data.user);
+                //console.log('Login successful, user:', data.user);
                 modal.remove();
                 localStorage.setItem('loggedIn', 'true');
                 await checkLoginStatus();
             } else {
-                alert('Error: ' + (data.error || 'Credenciales inválidas'));
+                aviso('Error: ' + (data.error || 'Credenciales inválidas'));
             }
         } catch (err) {
-            alert('Error de login: ' + err);
+            aviso('Error de login: ' + err);
         }
       });
     });
@@ -883,13 +883,13 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           const data = await res.json();
           if (res.ok) {
-            alert('Si el correo existe, recibirás instrucciones.');
+            aviso('Te hemos mandado un correo.');
             modal.remove();
           } else {
-            alert('Error: ' + (data.error || 'Intenta de nuevo'));
+            aviso('Error: ' + (data.error || 'Intenta de nuevo'));
           }
         } catch (err) {
-          alert('Error: ' + err);
+          aviso('Error: ' + err);
         }
       });
     }
@@ -986,15 +986,15 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           const data = await res.json();
           if (res.ok) {
-            alert('Registro exitoso');
+            aviso('Registro exitoso');
             modal.remove();
             // localStorage.setItem('loggedIn', 'true');
             // await checkLoginStatus();
           } else {
-            alert('Error: ' + (data.error || 'No se pudo registrar'));
+            aviso('Error: ' + (data.error || 'No se pudo registrar'));
           }
         } catch (err) {
-          alert('Error al registrar: ' + err);
+          aviso('Error al registrar: ' + err);
         }
       });
     }
@@ -1028,4 +1028,55 @@ document.addEventListener('DOMContentLoaded', () => {
         // Determine initial auth state after data loads
         checkLoginStatus();
       });
+
+  function aviso(message) {
+    const modal = document.createElement('div');
+    modal.id = 'registerModal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <span class="modal-close" id="avisoClose">&times;</span>
+        <p>${message}</p>
+        <button id="avisoCloseBtn" class="btn-primary">Cerrar</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('avisoClose').addEventListener('click', () => modal.remove());
+    document.getElementById('avisoCloseBtn').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  }
+
+
+  function confirmar(message) {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.id = 'registerModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <span class="modal-close" id="confirmClose">&times;</span>
+                <p>${message}</p>
+                <div style="display:flex;justify-content: center;align-items: center;gap:0.5rem;margin-top:1rem;">
+                    <button id="confirmAceptBtn" class="btn-primary">Borrar</button>
+                    <button id="confirmDenyBtn" class="btn-secondary">Cancelar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Función para limpiar y resolver
+        const cleanup = (result) => {
+            modal.remove();
+            resolve(result);
+        };
+
+        // Event listeners
+        document.getElementById('confirmClose').addEventListener('click', () => cleanup(false));
+        document.getElementById('confirmAceptBtn').addEventListener('click', () => cleanup(true));
+        document.getElementById('confirmDenyBtn').addEventListener('click', () => cleanup(false));
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) cleanup(false);
+        });
+    });
+  }
 });

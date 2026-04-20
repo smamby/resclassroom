@@ -43,6 +43,9 @@ function authenticateAdmin(req, res, next) {
     }
     const payload = verify(token, SECRET);
     const roles = Array.isArray(payload.role) ? payload.role : [payload.role];
+    if (!roles.includes('admin')) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
     req.user = { id: String(payload.userId), role: roles };
     next();
   } catch (err) {

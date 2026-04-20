@@ -12,19 +12,34 @@ beforeAll(async () => {
     if (typeof dbModule.connectToDatabase === 'function') {
       await dbModule.connectToDatabase();
     }
-    const db = dbModule.getDb();
-    const ws = db.collection('workspaces');
-    const users = db.collection('users');
-    
-    await ws.deleteMany({});
-    const wsResult1 = await ws.insertOne({ name: 'Aula Test', type: 'classroom', capacity: 30, location: 'Edificio A', equipment: ['proyector'] });
-    workspaceId1 = wsResult1.insertedId.toString();
-    
-    await users.deleteMany({ email: { $in: ['admin@test.com'] } });
-    const adminResult = await users.insertOne({ name: 'Admin', surname: 'Test', email: 'admin@test.com', role: 'admin', passwordHash: '$2a$10$test' });
-    adminUserId = adminResult.insertedId.toString();
+    const users = dbModule.getDb().collection('users');
+
+    // Admin existente hardcodeado
+    adminUserId = '69dd6c955e909313b229385a';
+
+    // Verificar que existe
+    const adminUser = await users.findOne({ _id: new ObjectId(adminUserId) });
+    if (!adminUser) {
+      throw new Error('Admin no existe');
+    }
+
+    // Workspace existente hardcodeado
+    workspaceId1 = '69e6635b5cc39bef7e8aa712'; // Quincho
   } catch (e) {
     console.warn('Seeding skipped:', e && e.message);
+  }
+});
+
+afterAll(async () => {
+  try {
+    const dbModule = require('../../src/db');
+    const db = dbModule.getDb();
+    // Borrar bookings de test por actividad específica
+    await db.collection('bookings').deleteMany({ 
+      actividad: { $in: ['Clase 1', 'Clase 2', 'Clase Martes'] }
+    });
+  } catch (e) {
+    console.warn('Cleanup skipped:', e && e.message);
   }
 });
 

@@ -14,7 +14,12 @@ if (process.env.TEST_AUTH === '1') {
     const id = req.headers['x-user-id'];
     const role = req.headers['x-user-role'];
     if (id && role) {
-      req.user = { id, role };
+      try {
+        const parsedRole = typeof role === 'string' ? JSON.parse(role) : role;
+        req.user = { id, role: Array.isArray(parsedRole) ? parsedRole : [parsedRole] };
+      } catch (e) {
+        req.user = { id, role: [role] };
+      }
     }
     next();
   });

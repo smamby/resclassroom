@@ -50,11 +50,25 @@ class UserController {
 
   async getUserById(req, res) {
     try {
-      const user = await this.store.findById(req.params.id);
-      if (user) {
-        res.status(200).json(user);
+      const requester = req.user;
+      const requestedId = req.params.id;
+      const requesterRoles = Array.isArray(requester?.role) ? requester.role : [];
+      if (requesterRoles.includes('admin')) {
+        const user = await this.store.findById(requestedId);
+        if (user) {
+          res.status(200).json(user);
+        } else {
+          res.status(404).json({ error: 'User not found' });
+        }
+      } else if (requester && String(requester.id) === String(requestedId)) {
+        const user = await this.store.findById(requestedId);
+        if (user) {
+          res.status(200).json(user);
+        } else {
+          res.status(404).json({ error: 'User not found' });
+        }
       } else {
-        res.status(404).json({ error: 'User not found' });
+        res.status(403).json({ error: 'Forbidden' });
       }
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -85,10 +99,22 @@ class UserController {
 
   async updateUser(req, res) {
     try {
+      const requester = req.user;
+      const requestedId = req.params.id;
+      const requesterRoles = Array.isArray(requester?.role) ? requester.role : [];
+      const isAdmin = requesterRoles.includes('admin');
+      const isOwner = requester && String(requester.id) === String(requestedId);
+      if (!isAdmin && !isOwner) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
       const updates = {
         ...req.body,
         updatedAt: new Date()
       };
+      if (isOwner && !isAdmin) {
+        delete updates.role;
+        delete updates.passwordHash;
+      }
       const user = await this.store.update(req.params.id, updates);
       if (user) {
         res.status(200).json(user);
