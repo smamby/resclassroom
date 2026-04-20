@@ -12,7 +12,7 @@ function getController() {
   return _controller;
 }
 
-router.get('/', (req, res) => getController().getAllUsers(req, res));
+router.get('/', auth.authenticateAdmin, (req, res) => getController().getAllUsers(req, res));
 router.get('/:id', (req, res) => getController().getUserById(req, res));
 router.get('/email/:email', (req, res) => getController().getUserByEmail(req, res));
 router.post('/', (req, res) => getController().createUser(req, res));

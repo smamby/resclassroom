@@ -288,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const rolesJson = sessionStorage.getItem('roles');
                 const roles = rolesJson ? JSON.parse(rolesJson) : ['visitor'];
                 const uid = String(sessionStorage.getItem('userId') || '');
-                console.log('[BOOKING-UI] canEdit check', act?.id, 'roles=', roles, 'uid=', uid, 'createdBy=', act?.createdByUserId);
+                //console.log('[BOOKING-UI] canEdit check', act?.id, 'roles=', roles, 'uid=', uid, 'createdBy=', act?.createdByUserId);
                 if (roles.includes('admin')) return true;
                 if (roles.includes('instructor') && String(act.createdByUserId) === String(uid)) return true;
                 return false;
@@ -803,10 +803,14 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
           e.preventDefault();
-        const payload = {
-          email: document.getElementById('loginEmail').value,
-          password: document.getElementById('loginPassword').value
-        };
+          const payload = {
+            email: document.getElementById('loginEmail').value,
+            password: document.getElementById('loginPassword').value
+          };
+          if (!payload.email.includes('@')) {
+            alert('Email inválido');
+            return false;
+          }
 
         try {
             const res = await fetch('/auth/login', {

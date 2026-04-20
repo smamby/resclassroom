@@ -6,6 +6,11 @@
       "sourceType": "github",
       "computedHash": "516bd2154eb843a8240e43d5b285229129853114ad7075a5e141e1c08e408c84"
     },
+    "secure": {
+      "source": "whawkinsiv/claude-code-superpowers",
+      "sourceType": "github",
+      "computedHash": "b1db2715d77893d46b3e2da110cbef0ad154b38831b7e2b05a58683d68e0a574"
+    },
     "webapp-testing": {
       "source": "anthropics/skills",
       "sourceType": "github",
