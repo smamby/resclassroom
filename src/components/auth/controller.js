@@ -43,7 +43,7 @@ class AuthController {
       const user = new User(userData);
       const created = await this.store.create(user);
       const roles = Array.isArray(created.role) ? created.role : [created.role];
-      const token = sign({ userId: String(created._id), role: roles }, SECRET, { expiresIn: '1h' });
+      const token = sign({ userId: String(created._id), role: roles }, SECRET, { expiresIn: '20m' });
       // Send token as HttpOnly cookie
       res.cookie('tokenAuth', token, { httpOnly: true, sameSite: 'lax' });
       res.status(201).json({ user: created });

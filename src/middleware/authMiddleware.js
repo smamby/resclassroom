@@ -19,7 +19,6 @@ function authenticate(req, res, next) {
     if (!token) {
       req.user = null;
       return next();
-      //return res.status(401).json({ error: 'Authentication required' });
     }
     const payload = verify(token, SECRET);
     const roles = Array.isArray(payload.role) ? payload.role : [payload.role];

@@ -1,0 +1,27 @@
+onlyBuiltDependencies:
+  - cpu-features
+  - get-console-process-list
+  - glibc-version
+  - kerberos
+  - mongodb-client-encryption
+  - mongodb-crypt-library-version
+  - os-dns-native
+  - ssh2
+  - win-export-certificate-and-key
+
+overrides:
+  cpu-features: 0.0.10
+  kerberos: 7.0.0
+  mongodb-client-encryption: 7.0.0
+  ssh2: 1.17.0
+
+allowBuilds:
+  cpu-features: true
+  get-console-process-list: true
+  glibc-version: true
+  kerberos: true
+  mongodb-client-encryption: true
+  mongodb-crypt-library-version: true
+  os-dns-native: true
+  ssh2: true
+  win-export-certificate-and-key: true

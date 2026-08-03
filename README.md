@@ -131,11 +131,11 @@ Response: 201 Created, {booking}
 - Módulo de reservas con formulario modal; admite múltiples slots (p. ej., todos los martes de 19:00 a 22:00)
 
 ## Configuración y ejecución local
-Requisitos previos: Node.js y MongoDB instalados
+Requisitos previos: Node.js, MongoDB y pnpm instalados
 
 1) Instalar dependencias
 ```
-npm install
+pnpm install
 ```
 
 2) Crear archivo de configuración (opcional) .env (ejemplo)
@@ -148,7 +148,7 @@ PORT=3000
 
 3) Iniciar el servidor
 ```
-npm run dev   # o node src/server.js
+pnpm run dev   # o node src/server.js
 ```
 
 4) Ver la app
@@ -158,7 +158,7 @@ npm run dev   # o node src/server.js
 ## Pruebas
 - Ejecutar pruebas unitarias/integración
 ```
-npm test
+pnpm test
 ```
 - Ubicación de pruebas: archivos __tests__ junto a componentes
 

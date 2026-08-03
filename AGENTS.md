@@ -209,7 +209,7 @@ public/
 
 ### Suite de Tests
 - **Ubicación**: `test/integration/bookings.integration.test.js` y componentes `__tests__/`
-- **Ejecución**: `npm test`
+- **Ejecución**: `pnpm test`
 
 ### Tests de Integración (Bookings)
 Los tests de integración verifican flujos de error y casos exitosos:
