@@ -1,5 +1,9 @@
 node_modules
 nul
+null
+npx
+oom
+exported_data
 .env
 .gitignore
 .worktrees
