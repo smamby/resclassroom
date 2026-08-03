@@ -1,5 +1,6 @@
 {
   "name": "workspace-reservation-system",
+  "packageManager": "pnpm@11.9.0",
   "version": "1.0.0",
   "description": "A system for reserving workspaces such as classrooms and workshops",
   "main": "src/server.js",
