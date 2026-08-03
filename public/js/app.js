@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentDate = new Date();
     let selectedDay = null;
+    // Guard para evitar recursión entre logout() y checkLoginStatus()
+    let loggingOut = false;
     // Bookings data will be loaded from the API and mapped to the UI shape
     let bookings = [];
     // Real workspaces loaded from DB
@@ -93,17 +95,30 @@ document.addEventListener('DOMContentLoaded', () => {
           const uname = data?.name || data?.username || 'Usuario';
           // Persist username for UI usage
           sessionStorage.setItem('username', uname);
+          const roles = Array.isArray(data?.role) ? data.role : [data?.role || 'visitor'];
+          sessionStorage.setItem('roles', JSON.stringify(roles));
+          if (data?._id || data?.id) sessionStorage.setItem('userId', data._id || data.id);
+          localStorage.setItem('loggedIn', 'true');
           renderAuthUI(true, uname);
+          updateFloatingButtonsVisibility();
           return;
         }
+        // Token vencido o inválido: sesión expirada, se ejecuta logout
+        if (loggingOut) {
+          // Ya estamos dentro de logout(): solo renderizar UI deslogueada
+          renderAuthUI(false, null);
+          updateFloatingButtonsVisibility();
+          return;
+        }
+        await logout();
       } catch (e) {
-        // ignore and fallback to localStorage
+        if (loggingOut) {
+          renderAuthUI(false, null);
+          updateFloatingButtonsVisibility();
+          return;
+        }
+        await logout();
       }
-      const isLogged = localStorage.getItem('loggedIn') === 'true';
-      // Clear stored username if not logged in
-      if (!isLogged) sessionStorage.removeItem('username');
-      renderAuthUI(isLogged, sessionStorage.getItem('username'));//'Usuario');
-      updateFloatingButtonsVisibility();
     }
 
     function updateFloatingButtonsVisibility() {
@@ -369,6 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!bookingId) return;
             try {
               const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
+              if (await handleAuthError(res)) return;
               if (!res.ok) return aviso('No se pudo obtener la reserva');
               const booking = await res.json();
               showEditModal(booking);
@@ -387,6 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!bookingId) return;
             try {
               const res = await fetch(`/bookings/${bookingId}`, { method: 'DELETE', credentials: 'include' });
+              if (await handleAuthError(res)) return;
               if (res.ok) {
                 await fetchBookingsFromApi();
                 renderCalendar();
@@ -449,6 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!bookingId) return;
       try {
         const res = await fetch(`/bookings/${bookingId}`, { credentials: 'include' });
+        if (await handleAuthError(res)) return;
         if (!res.ok) { aviso('No se pudo obtener la reserva'); return; }
         const booking = await res.json();
         showEditModal(booking);
@@ -461,6 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!await confirmar('¿Seguro que quieres eliminar esta reserva?')) return;
       try {
         const res = await fetch(`/bookings/${bookingId}`, { method: 'DELETE', credentials: 'include' });
+        if (await handleAuthError(res)) return;
         if (res.ok) {
           await fetchBookingsFromApi();
           renderCalendar();
@@ -525,6 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         const res = await fetch(`/users/${userId}`, { credentials: 'include' });
+        if (await handleAuthError(res)) return;
         if (!res.ok) {
           aviso('Error al verificar permisos');
           return;
@@ -619,6 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
             body: JSON.stringify(payload)
           });
 
+          if (await handleAuthError(res)) return;
           const data = await res.json();
 
           if (res.ok) {
@@ -645,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    reservationForm.addEventListener('submit', (e) => {
+    reservationForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         // If we are editing an existing booking, use PUT /bookings/:id
@@ -674,6 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 credentials: 'include',
                 body: JSON.stringify(payload)
             }).then(async res => {
+              if (await handleAuthError(res)) return;
               let result;
               try { result = await res.json(); } catch (e) { result = null; }
               if (res.ok && result && (result._id || result.id)) {
@@ -729,47 +751,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 notes: ''
             };
 
-            // Prefer using a lightweight API wrapper if available
-            let api = window.BookingsApi || {
-              createBooking: (data) => fetch('/bookings', {
+            // Crear reserva vía API (maneja 401 para expirar sesión)
+            try {
+              const createRes = await fetch('/bookings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+                body: JSON.stringify(payload),
                 credentials: 'include'
-              }).then(res => res.json())
-            };
-
-            api.createBooking(payload).then(result => {
-              if (result && (result._id || result.insertedId)) {
-                aviso('Reserva creada con éxito');
-                reservationModal.classList.add('hidden');
-                reservationForm.reset();
-                // Auto-refresh bookings and UI to reflect the newly created reservation
-                fetchBookingsFromApi()
-                  .then(() => {
-                    renderCalendar();
-                    populateActivitySelect();
-                    populateWorkspaceSelect();
-                    if (selectedDay && selectedDay.dateStr) {
-                      const activities = getFilteredActivities(
-                        selectedDay.dateStr,
-                        new Date(selectedDay.dateStr).getDay()
-                      );
-                      selectDay(selectedDay.day, selectedDay.dateStr, activities);
-                    }
-                  })
-                  .catch(err => {
-                    console.error('Error refreshing bookings after create', err);
-                  });
-            } else if (result && result.error) {
-              // Creation errors can be surfaced as a generic message to avoid leaking backend specifics
-              aviso('Error al crear la reserva: ' + (result.error || 'Desconocido'));
-              } else {
-              aviso('Error al crear la reserva');
-            }
-            }).catch(err => {
+              });
+              if (await handleAuthError(createRes)) return;
+              let createResult;
+              try { createResult = await createRes.json(); } catch (e) { createResult = null; }
+              if (createResult && (createResult._id || createResult.insertedId)) {
+                  aviso('Reserva creada con éxito');
+                  reservationModal.classList.add('hidden');
+                  reservationForm.reset();
+                  // Auto-refresh bookings and UI to reflect the newly created reservation
+                  fetchBookingsFromApi()
+                    .then(() => {
+                      renderCalendar();
+                      populateActivitySelect();
+                      populateWorkspaceSelect();
+                      if (selectedDay && selectedDay.dateStr) {
+                        const activities = getFilteredActivities(
+                          selectedDay.dateStr,
+                          new Date(selectedDay.dateStr).getDay()
+                        );
+                        selectDay(selectedDay.day, selectedDay.dateStr, activities);
+                      }
+                    })
+                    .catch(err => {
+                      console.error('Error refreshing bookings after create', err);
+                    });
+              } else if (createResult && createResult.error) {
+                // Creation errors can be surfaced as a generic message to avoid leaking backend specifics
+                aviso('Error al crear la reserva: ' + (createResult.error || 'Desconocido'));
+                } else {
+                aviso('Error al crear la reserva');
+              }
+            } catch (err) {
               aviso('Error al crear: ' + (err?.message || err));
-            });
+            }
         }
     });
 
@@ -898,7 +920,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLogoutEl = document.getElementById('btnLogout');
     if (btnLogoutEl) {
       btnLogoutEl.addEventListener('click', async () => {
-        try {
+        await logout();
+      });
+    }
+
+    async function logout() {
+      loggingOut = true;
+      try {
           await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
         } catch (e) {
           // ignore
@@ -931,7 +959,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           })
           .catch(err => console.error('Error refreshing after edit', err));
-      });
+        loggingOut = false;
+    }
+
+    // Helper para manejar respuestas 401 en fetches protegidos:
+    // si la sesión expiró, se ejecuta logout y se aborta la operación
+    async function handleAuthError(res) {
+      if (res && res.status === 401) {
+        aviso('Tu sesión expiró. Vuelve a iniciar sesión.');
+        await logout();
+        return true;
+      }
+      return false;
     }
 
     // Registrar nuevo usuario: modal estilizado coherente

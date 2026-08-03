@@ -48,6 +48,10 @@ class WorkspaceController {
 
   async updateWorkspace(req, res) {
     try {
+      const user = req.user;
+      if (!user || !Array.isArray(user.role) || !user.role.some(r => ['admin', 'instructor'].includes(r))) {
+        return res.status(403).json({ error: 'Unauthorized to modify workspaces' });
+      }
       const updates = {
         ...req.body,
         updatedAt: new Date()
@@ -65,6 +69,10 @@ class WorkspaceController {
 
   async deleteWorkspace(req, res) {
     try {
+      const user = req.user;
+      if (!user || !Array.isArray(user.role) || !user.role.some(r => ['admin', 'instructor'].includes(r))) {
+        return res.status(403).json({ error: 'Unauthorized to modify workspaces' });
+      }
       const result = await this.store.delete(req.params.id);
       if (result) {
         res.status(200).json({ message: 'Workspace deleted successfully' });

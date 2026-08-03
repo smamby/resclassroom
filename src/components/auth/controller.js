@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 
 const { sign } = jwt;
 const SECRET = process.env.JWT_SECRET || 'change-me-please';
+const ACCESS_TTL = process.env.JWT_EXPIRES_IN || '20m';
 
 class AuthController {
     constructor() {
@@ -16,6 +17,29 @@ class AuthController {
       // Clear the token cookie on logout
       res.clearCookie('tokenAuth');
       res.status(200).json({ message: 'Logout successful' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async me(req, res) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      const user = await this.store.findById(req.user.id);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+      const userRoles = Array.isArray(user.role) ? user.role : [user.role];
+      res.status(200).json({
+        _id: user._id,
+        name: user.name,
+        surname: user.surname,
+        email: user.email,
+        role: userRoles,
+        createdAt: user.createdAt
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -43,9 +67,9 @@ class AuthController {
       const user = new User(userData);
       const created = await this.store.create(user);
       const roles = Array.isArray(created.role) ? created.role : [created.role];
-      const token = sign({ userId: String(created._id), role: roles }, SECRET, { expiresIn: '20m' });
+      const token = sign({ userId: String(created._id), role: roles, sessionIat: Date.now() }, SECRET, { expiresIn: ACCESS_TTL });
       // Send token as HttpOnly cookie
-      res.cookie('tokenAuth', token, { httpOnly: true, sameSite: 'lax' });
+      res.cookie('tokenAuth', token, { httpOnly: true, sameSite: 'lax', maxAge: 20 * 60 * 1000 });
       res.status(201).json({ user: created });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -69,8 +93,8 @@ class AuthController {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
       const userRoles = Array.isArray(user.role) ? user.role : [user.role];
-      const token = sign({ userId: String(user._id), role: userRoles }, SECRET, { expiresIn: '20m' });
-      res.cookie('tokenAuth', token, { httpOnly: true, sameSite: 'lax' });
+      const token = sign({ userId: String(user._id), role: userRoles, sessionIat: Date.now() }, SECRET, { expiresIn: ACCESS_TTL });
+      res.cookie('tokenAuth', token, { httpOnly: true, sameSite: 'lax', maxAge: 20 * 60 * 1000 });
       const sanitizedUser = {
         _id: user._id,
         name: user.name,

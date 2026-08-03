@@ -79,7 +79,9 @@ class UserController {
     try {
       const user = await this.store.findByEmail(req.params.email);
       if (user) {
-        res.status(200).json(user);
+        // Sanitizar: no exponer credenciales ni tokens de reseteo
+        const { passwordHash, resetPasswordToken, resetPasswordExpires, ...safe } = user;
+        res.status(200).json(safe);
       } else {
         res.status(404).json({ error: 'User not found' });
       }
