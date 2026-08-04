@@ -142,7 +142,7 @@ pnpm install
 ```
 MONGODB_URI=mongodb://localhost:27017/reservas
 JWT_SECRET=tu-secreto-largo-aleatorio
-JWT_EXPIRES_IN=1h
+JWT_EXPIRES_IN=20m
 PORT=3000
 ```
 
