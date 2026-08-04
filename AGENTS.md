@@ -138,14 +138,17 @@ public/
 ### Users
 - GET `/users` - Listar todos
 - GET `/users/:id` - Obtener por ID
-- GET `/users/email/:email` - Obtener por email
-- POST `/users` - Crear
+- GET `/users/email/:email` - Obtener por email (sanitizado: sin passwordHash/resetPasswordToken)
+- POST `/users` - Crear (solo admin)
 - PUT `/users/:id` - Actualizar
 - DELETE `/users/:id` - Eliminar
+- PUT `/users/:id/promote` - Promover a admin (solo admin)
+
+### Auth
 - POST `/auth/login` - Iniciar sesión (JWT)
 - POST `/auth/register` - Registrar usuario
 - POST `/auth/logout` - Cerrar sesión
-- PUT `/users/:id/promote` - Promover a admin (solo admin)
+- GET `/auth/me` - Verificar sesión activa y devolver datos del usuario
 
 ### Bookings
 - GET `/bookings` - Listar todas las reservas
@@ -179,7 +182,12 @@ public/
 - Las reservas pueden tener múltiples slots (ej: "todos los martes de 19hs a 22hs")
 
 ## Requisitos No Funcionales Implementados
-- Autenticación y autorización de usuarios (JWT)
+- Autenticación y autorización de usuarios (JWT con cookies HttpOnly)
+- Sesiones con sliding refresh (renovación automática si quedan <5 min) y tope absoluto de 40 min
+- Watchdog en frontend: `/auth/me` cada 60 s + re-chequeo al volver a la pestaña (visibilitychange)
+- `handleAuthError` en fetches protegidos: ante 401 → logout + redirect al home
+- POST `/users` restringido a admin
+- GET `/users/email/:email` sanitizado (sin passwordHash ni resetPasswordToken)
 - Validación y sanitización de datos
 - Diseño responsive para interfaz web y móvil
 - Edición de datos de usuario
@@ -198,12 +206,17 @@ public/
 7. **Testing**: Archivos de prueba en `__tests__` junto a los componentes
 
 ## Estado Actual
-- Autenticación JWT funcionando (login/register)
+- Autenticación JWT funcionando (login/register) con sesiones sliding refresh
+- Tope absoluto de sesión: 40 min (sessionIat en segundos, normalización legacy ms)
+- Watchdog frontend: `/auth/me` cada 60 s + visibilitychange para detectar expiración en vivo
+- `handleAuthError` integrado en todos los fetches protegidos (401 → logout + redirect)
+- POST `/users` restringido a admin; GET `/users/email/:email` sanitizado
 - CRUD completo para espacios de trabajo y usuarios
 - Sistema de reservas completo con detección de conflictos
 - Calendario frontend funcional con vista mensual
 - Filtros de espacios y actividades funcionando
-- Tests de integración para flujos de bookings
+- Tests unitarios: 36 tests, 8 suites (auth, users, workspaces, bookings, middleware, router)
+- Tests de integración: flujos de bookings (pasan individualmente; EADDRINUSE al correr ambas suites juntas — pre-existente)
 
 ## Tests
 

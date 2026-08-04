@@ -114,9 +114,14 @@ Response: 201 Created, {booking}
 ```
 
 ## Flujo de autenticación y seguridad
-- Registro/Login: endpoints /auth/register y /auth/login
+- Registro/Login: endpoints `/auth/register` y `/auth/login`
 - Autenticación con JWT; el token se entrega en cookies HttpOnly para evitar accesos desde JavaScript cliente
 - Middleware de autorización aplicado a rutas sensibles para garantizar que solo usuarios autorizados ejecuten acciones
+- POST `/users` restringido a administradores
+- GET `/users/email/:email` sanitizado: nunca devuelve passwordHash ni tokens internos
+- Sesiones con sliding refresh: si al token le quedan menos de 5 min, se renueva automáticamente
+- Tope absoluto de sesión: 40 min, aunque haya actividad. El servidor rechaza con 401 y limpia la cookie
+- Watchdog en frontend: consulta `/auth/me` cada 60 s y al volver a la pestaña para detectar expiración en vivo
 
 ## Flujo de reservas (alto nivel)
 - Un usuario busca disponibilidad de un workspace
@@ -124,11 +129,45 @@ Response: 201 Created, {booking}
 - El sistema valida conflictos: no permite solapamientos en el mismo workspace para el mismo rango
 - Si la reserva es válida, se guarda en la base de datos y se devuelve al cliente
 
+## Flujo de datos
+```
+Request HTTP
+    ↓
+server.js (Express app)
+    ↓
+routes.js (server.use('/workspaces', workspacesRouter))
+    ↓
+components/workspaces/network.js (express.Router)
+    ↓
+components/workspaces/controller.js (WorkspaceController)
+    ↓
+components/workspaces/store.js (WorkspaceStore → MongoDB)
+```
+
 ## Frontend (visión general)
 - Interfaz minimalista y responsive
 - Calendario mensual personalizado sin dependencias externas
 - Filtros para workspace, actividad y día de la semana
 - Módulo de reservas con formulario modal; admite múltiples slots (p. ej., todos los martes de 19:00 a 22:00)
+
+### Modelo de reserva (frontend)
+```javascript
+{
+  id: number,
+  workspace: string,
+  workspaceName: string,
+  activity: string,
+  color: string,        // Color identificativo
+  slots: [             // Array de fechas/horarios
+    {
+      startdate: string,    // "2026-03-03"
+      enddate: string,
+      startTime: string,  // "19:00"
+      endTime: string     // "22:00"
+    }
+  ]
+}
+```
 
 ## Configuración y ejecución local
 Requisitos previos: Node.js, MongoDB y pnpm instalados
@@ -171,5 +210,4 @@ pnpm test
 - Mantén el código simple y con comentarios cuando la lógica necesite aclaración
 
 ## Notas finales
-- Este README se deriva de las especificaciones del repositorio (SPEC.md y AGENTS.md) y describe la estructura y comportamiento esperados del sistema
-- Si necesitas más ejemplos de solicitudes/respuestas, o un diagrama de arquitectura, puedo generarlo y agregarlo al README
+- Este README describe la estructura, comportamiento y configuración del sistema. Para contexto técnico destinado a agentes IA, consultar AGENTS.md
