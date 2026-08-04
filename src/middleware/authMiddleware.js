@@ -31,7 +31,11 @@ function verifyAndMaybeRefresh(req, res, token) {
   }
 
   // Momento de inicio de sesión (compat con tokens viejos sin sessionIat)
-  const sessionIat = payload.sessionIat || payload.iat || Math.floor(Date.now() / 1000);
+  let sessionIat = payload.sessionIat || payload.iat || Math.floor(Date.now() / 1000);
+  // Compat con tokens emitidos antes del fix: se firmaba sessionIat en milisegundos
+  if (sessionIat > 1e11) {
+    sessionIat = Math.floor(sessionIat / 1000);
+  }
   const sessionStartMs = sessionIat * 1000;
 
   // Tope absoluto de sesión: aunque haya actividad, no superar los 40 min

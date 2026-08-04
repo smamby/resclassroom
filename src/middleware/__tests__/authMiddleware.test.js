@@ -26,14 +26,14 @@ describe('authenticateAdmin', () => {
   });
 
   test('returns 403 when token belongs to a visitor', () => {
-    const req = cookieFor({ userId: 'v1', role: ['visitor'], sessionIat: Date.now() });
+    const req = cookieFor({ userId: 'v1', role: ['visitor'], sessionIat: Math.floor(Date.now() / 1000) });
     const res = mockRes();
     authenticateAdmin(req, res, jest.fn());
     expect(res._status).toBe(403);
   });
 
   test('allows admin token through', () => {
-    const req = cookieFor({ userId: 'a1', role: ['admin'], sessionIat: Date.now() });
+    const req = cookieFor({ userId: 'a1', role: ['admin'], sessionIat: Math.floor(Date.now() / 1000) });
     const res = mockRes();
     const next = jest.fn();
     authenticateAdmin(req, res, next);
@@ -43,7 +43,7 @@ describe('authenticateAdmin', () => {
   });
 
   test('returns 401 for expired token', () => {
-    const expired = sign({ userId: 'a1', role: ['admin'], sessionIat: Date.now() }, SECRET, { expiresIn: '-1s' });
+    const expired = sign({ userId: 'a1', role: ['admin'], sessionIat: Math.floor(Date.now() / 1000) }, SECRET, { expiresIn: '-1s' });
     const req = { headers: { cookie: `tokenAuth=${expired}` } };
     const res = mockRes();
     authenticateAdmin(req, res, jest.fn());
@@ -63,7 +63,7 @@ describe('authenticate', () => {
   });
 
   test('sets user from valid token', () => {
-    const req = cookieFor({ userId: 'u1', role: ['instructor'], sessionIat: Date.now() });
+    const req = cookieFor({ userId: 'u1', role: ['instructor'], sessionIat: Math.floor(Date.now() / 1000) });
     const res = mockRes();
     const next = jest.fn();
     authenticate(req, res, next);
@@ -76,6 +76,17 @@ describe('authenticate', () => {
     // sessionIat hace 41 minutos => supera el tope absoluto de sesión
     const sessionIat = Math.floor(Date.now() / 1000) - 41 * 60;
     const req = cookieFor({ userId: 'u1', role: ['admin'], sessionIat }, '5m');
+    const res = mockRes();
+    authenticate(req, res, jest.fn());
+    expect(res._status).toBe(401);
+    expect(res._json.error).toBe('Session expired');
+    expect(res._cleared).toBe(true);
+  });
+
+  test('normalizes legacy millisecond sessionIat so absolute cap still applies', () => {
+    // Tokens viejos firmaban sessionIat en ms: hace 41 min debe contar como expirado
+    const sessionIatMs = Date.now() - 41 * 60 * 1000;
+    const req = cookieFor({ userId: 'u1', role: ['admin'], sessionIat: sessionIatMs }, '5m');
     const res = mockRes();
     authenticate(req, res, jest.fn());
     expect(res._status).toBe(401);
