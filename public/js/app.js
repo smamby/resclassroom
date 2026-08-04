@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchBookingsFromApi() {
       try {
         const res = await fetch('/bookings', { credentials: 'include' });
+        if (await handleAuthError(res)) return;
         const data = await res.json();
         bookings = data.map(b => {
           const wsId = b.workspaceId;
@@ -1056,6 +1057,21 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
     ensureRegisterButton();
+
+    // Watchdog de sesión: verifica periódicamente si la sesión sigue viva
+    // y ejecuta logout automáticamente al expirar (tope absoluto de 40 min).
+    setInterval(() => {
+      if (localStorage.getItem('loggedIn') === 'true') {
+        checkLoginStatus();
+      }
+    }, 60 * 1000);
+
+    // Re-chequeo inmediato al volver a la pestaña
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && localStorage.getItem('loggedIn') === 'true') {
+        checkLoginStatus();
+      }
+    });
 
     // Load workspaces first to populate the creation filters, then bookings
     fetchWorkspacesFromApi()
