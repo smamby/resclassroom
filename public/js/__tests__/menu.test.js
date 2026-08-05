@@ -1,4 +1,20 @@
-const { buildMenuItems } = require('../menu');
+const { buildMenuItems, iconForWidth } = require('../menu');
+
+describe('iconForWidth', () => {
+  test('ancho menor a 480px elige icono de tres puntos', () => {
+    const svg = iconForWidth(375);
+    expect(svg).toContain('M13 5C13 4.44772');
+    expect(svg).not.toContain('M4 6H20');
+  });
+  test('ancho mayor o igual a 480px elige icono hamburguesa', () => {
+    const svg = iconForWidth(1280);
+    expect(svg).toContain('M4 6H20');
+    expect(svg).not.toContain('M13 5C13 4.44772');
+  });
+  test('ancho exacto 480px usa hamburguesa', () => {
+    expect(iconForWidth(480)).toContain('M4 6H20');
+  });
+});
 
 describe('buildMenuItems', () => {
   test('visitor ve solo items base', () => {

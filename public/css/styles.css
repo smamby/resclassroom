@@ -1171,7 +1171,7 @@ body::before {
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 479px) {
     .calendar-grid {
         gap: 1px;
     }
@@ -1344,7 +1344,7 @@ body::before {
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 479px) {
     /* body::before {
         background:
             radial-gradient(ellipse 100% 60% at 50% -20%, var(--accent-glow), transparent);

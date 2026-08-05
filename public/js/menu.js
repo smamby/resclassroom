@@ -43,6 +43,16 @@
 
   const ICON_HAMBURGER = `<svg width="20px" height="20px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6H20M4 12H20M4 18H20" stroke="#eee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+  // Los puntos se muestran en pantallas angostas (< 480px), hamburguesa en el resto
+  function iconForWidth(width) {
+    return width < 480 ? ICON_DOTS : ICON_HAMBURGER;
+  }
+
+  function updateIcon(menuEl) {
+    const btn = menuEl.querySelector('.menu-btn');
+    if (btn) btn.innerHTML = iconForWidth(window.innerWidth);
+  }
+
   let handlers = {};
   let containerEl = null;
 
@@ -67,7 +77,7 @@
   }
 
   function buildMarkup(items) {
-    const svg = window.innerWidth < 480 ? ICON_DOTS : ICON_HAMBURGER;
+    const svg = iconForWidth(window.innerWidth);
     const list = items.map((id) => {
       const item = MENU_ITEMS[id];
       if (!item) return '';
@@ -124,7 +134,12 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && containerEl) closeMenu(containerEl);
     });
+    // Al cruzar el umbral de 480px el icono debe cambiar; actualizar solo el
+    // icono preserva el estado abierto/cerrado del dropdown.
+    window.addEventListener('resize', () => {
+      if (containerEl) updateIcon(containerEl);
+    });
   }
 
-  return { MENU_ITEMS, MENU_CONFIG, buildMenuItems, init, render };
+  return { MENU_ITEMS, MENU_CONFIG, buildMenuItems, iconForWidth, init, render };
 });

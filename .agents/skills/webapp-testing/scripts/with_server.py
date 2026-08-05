@@ -14,6 +14,7 @@ Usage:
       -- python test.py
 """
 
+import os
 import subprocess
 import socket
 import time
@@ -92,12 +93,21 @@ def main():
         # Clean up all servers
         print(f"\nStopping {len(server_processes)} server(s)...")
         for i, process in enumerate(server_processes):
-            try:
-                process.terminate()
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
+            # En Windows shell=True crea un cmd.exe que no propaga terminate()
+            # a los hijos; taskkill /T /F mata todo el árbol de procesos
+            if os.name == 'nt':
+                subprocess.run(
+                    ['taskkill', '/PID', str(process.pid), '/T', '/F'],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
                 process.wait()
+            else:
+                try:
+                    process.terminate()
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
             print(f"Server {i+1} stopped")
         print("All servers stopped")
 
