@@ -1,7 +1,8 @@
 const ROLES = {
   ADMIN: 'admin',
   INSTRUCTOR: 'instructor',
-  VISITOR: 'visitor'
+  VISITOR: 'visitor',
+  SUBCO: 'subco'
 };
 
 class User {
@@ -9,20 +10,20 @@ class User {
     if (!data.name || data.name.trim() === '') {
       throw new Error('Name is required');
     }
-    
+
     if (!data.surname || data.surname.trim() === '') {
       throw new Error('Surname is required');
     }
-    
+
     if (!data.email || data.email.trim() === '') {
       throw new Error('Email is required');
     }
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(data.email.trim())) {
       throw new Error('Invalid email format');
     }
-    
+
     if (data.role) {
       if (!Array.isArray(data.role)) {
         data.role = [data.role];
@@ -32,7 +33,7 @@ class User {
         throw new Error(`Invalid roles: ${invalidRoles.join(', ')}. Must be one of: ${Object.values(ROLES).join(', ')}`);
       }
     }
-    
+
     this._id = data._id;
     this.name = data.name.trim();
     this.surname = data.surname.trim();

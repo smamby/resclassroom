@@ -17,13 +17,13 @@ Las acciones del menú (Mi cuenta, Gestionar Usuarios, Votar, Cursos, etc.) son 
 | `mis-reservas` | Mis Reservas | admin, instructor |
 | `gestionar-espacios` | Gestionar Espacios | admin |
 | `gestionar-usuarios` | Gestionar Usuarios | admin |
-| `votar` | Votar | subco (futuro) |
-| `cursos` | Cursos | subco (futuro) |
+| `votar` | Votar | subco |
+| `cursos` | Cursos | subco |
 | `logout` | Cerrar Sesión | Todos (base) |
 
 Orden en el dropdown: items base primero (Mi cuenta, Cerrar Sesión) y los extras de cada rol intercalados entre ellos, con un separador visual antes de Cerrar Sesión.
 
-Roles actuales en el backend: `admin`, `instructor`, `visitor` (`src/components/user/models/User.js`). El rol `subco` no existe todavía; se contempla en la config del menú para cuando se agregue.
+Roles actuales en el backend: `admin`, `instructor`, `visitor`, `subco` (`src/components/user/models/User.js`).
 
 Decisiones tomadas durante el brainstorming:
 
