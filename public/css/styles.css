@@ -289,10 +289,60 @@ body::before {
     margin-left: 0.5rem;
     cursor: pointer;
     transition: transform var(--transition-fast);
+    position: relative;
 }
-.menu:hover {
-    transform: translateY(-1px);
-    scale: 1.2;
+.menu-btn {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: #eee;
+    cursor: pointer;
+    padding: 0;
+    transition: transform var(--transition-fast);
+}
+.menu-btn:hover {
+    transform: translateY(-1px) scale(1.2);
+}
+.menu-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    min-width: 200px;
+    list-style: none;
+    padding: 0.5rem;
+    margin: 0;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    box-shadow: var(--card-shadow);
+    z-index: 1000;
+}
+.menu-dropdown[hidden] {
+    display: none;
+}
+.menu-item {
+    width: 100%;
+    text-align: left;
+    padding: 0.6rem 0.9rem;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+.menu-item:hover {
+    background: var(--bg-card);
+}
+.menu-separator {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: 0.4rem 0.6rem;
 }
 
 .btn-login:hover::before {
