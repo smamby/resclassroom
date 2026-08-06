@@ -630,8 +630,8 @@ document.addEventListener('DOMContentLoaded', () => {
           if (res.ok) {
             aviso('Espacio creado exitosamente');
             modal.remove();
+            await fetchWorkspacesFromApi();
             populateWorkspaceSelect();
-            fetchWorkspacesFromApi();
           } else {
             aviso('Error: ' + (data.error || 'No se pudo crear el espacio'));
           }
@@ -837,6 +837,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 modal.remove();
                 localStorage.setItem('loggedIn', 'true');
                 await checkLoginStatus();
+                await refreshView();
             } else {
                 aviso('Error: ' + (data.error || 'Credenciales inválidas'));
             }
@@ -956,6 +957,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
       }
       return false;
+    }
+
+    // Refresca datos y re-renderiza calendario, filtros y panel del día.
+    // Se usa tras login (para aplicar permisos) y tras cambios de datos.
+    async function refreshView() {
+      try {
+        await fetchWorkspacesFromApi();
+        await fetchBookingsFromApi();
+        renderCalendar();
+        populateActivitySelect();
+        populateWorkspaceSelect();
+        if (selectedDay && selectedDay.dateStr) {
+          const activities = getFilteredActivities(
+            selectedDay.dateStr,
+            new Date(selectedDay.dateStr).getDay()
+          );
+          selectDay(selectedDay.day, selectedDay.dateStr, activities);
+        }
+      } catch (err) {
+        console.error('Error refrescando vista', err);
+      }
     }
 
     // El menú delega la accion de logout al flujo existente de sesion

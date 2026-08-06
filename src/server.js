@@ -2,9 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const routes = require('./routes');
-const { connectToDatabase } = require('./db');
+const { connectToDatabase, closeDatabaseConnection } = require('./db');
 
 const app = express();
+let server;
 
 app.use(express.json());
 
@@ -40,6 +41,39 @@ app.get('/reset-password/:token', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'reset-password.html'));
 });
 
+
+function gracefulShutdown(signal) {
+  console.log(`Recibida señal ${signal}. Cerrando conexiones...`);
+
+  if (server) {
+    server.close( async () => {
+      console.log('Servidor cerrado correctamente.');
+      try {
+        await closeDatabaseConnection();
+        console.log('Cierre ordenado finalizado.');
+        process.exit(0);
+      } catch (err) {
+        console.error('Error al cerrar la base de datos:', err);
+        process.exit(1);
+      }
+    });
+
+    // Timeout de seguridad (8s)
+    setTimeout(() => {
+      console.error('Timeout de 8s alcanzado, forzando salida.');
+      process.exit(1);
+    }, 8000);
+  } else {
+    // Si el servidor aún no se inició, salimos directamente
+    process.exit(0);
+  }
+}
+
+// ---------- LISTENERS (se registran ANTES de arrancar) ----------
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+
 const startServer = async () => {
     try {
         await connectToDatabase();
@@ -51,7 +85,7 @@ const startServer = async () => {
         });
 
         const PORT = process.env.PORT || 3000;
-        app.listen(PORT, '0.0.0.0', () => {
+        server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server is running on http://localhost:${PORT}`);
         });
     } catch (err) {
@@ -62,4 +96,4 @@ const startServer = async () => {
 
 startServer();
 
-module.exports = app;
+//module.exports = app;

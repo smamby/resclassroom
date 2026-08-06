@@ -1,6 +1,7 @@
 const { MongoClient } = require('mongodb');
 
 let _db;
+let _client;
 
 async function connectToDatabase() {
   try {
@@ -8,9 +9,9 @@ async function connectToDatabase() {
 
     const DB_URI = `mongodb+srv://mamby_db_admin:${db_pass}@resclassroom.s0mi2bf.mongodb.net/resclassroom`;
 
-    const client = new MongoClient(DB_URI);
-    await client.connect();
-    _db = client.db('resclassroom');
+    _client = new MongoClient(DB_URI);
+    await _client.connect();
+    _db = _client.db('resclassroom');
 
     const collections = await _db.listCollections().toArray();
     const collectionNames = collections.map(c => c.name);
@@ -42,7 +43,19 @@ function getDb() {
   return _db;
 }
 
+
+async function closeDatabaseConnection() {
+  if (_client) {
+    await _client.close();
+    _db = null;
+    _client = null;
+    console.log('Conexión a la base de datos MongoDB cerrada correctamente.');
+  }
+}
+
+
 module.exports = {
   connectToDatabase,
-  getDb
+  getDb,
+  closeDatabaseConnection
 };
