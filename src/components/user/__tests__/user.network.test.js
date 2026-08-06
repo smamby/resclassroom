@@ -1,5 +1,6 @@
 const request = require('supertest');
 const express = require('express');
+const ROLES = require('../../../../common/roles');
 
 jest.mock('../../../db', () => ({
   getDb: jest.fn(() => ({
@@ -20,7 +21,7 @@ describe('User network auth protection', () => {
   test('POST /users returns 401 without admin token', async () => {
     const res = await request(app)
       .post('/users')
-      .send({ name: 'Ana', surname: 'Gomez', email: 'ana@mail.com', role: ['instructor'] });
+      .send({ name: 'Ana', surname: 'Gomez', email: 'ana@mail.com', role: [ROLES.INSTRUCTOR] });
     expect(res.status).toBe(401);
   });
 

@@ -1,5 +1,6 @@
 const request = require('supertest');
 const { ObjectId } = require('mongodb');
+const ROLES = require('../../common/roles');
 let app;
 let adminUserId;
 let workspaceId1;
@@ -35,7 +36,7 @@ afterAll(async () => {
     const dbModule = require('../../src/db');
     const db = dbModule.getDb();
     // Borrar bookings de test por actividad específica
-    await db.collection('bookings').deleteMany({ 
+    await db.collection('bookings').deleteMany({
       actividad: { $in: ['Clase 1', 'Clase 2', 'Clase Martes'] }
     });
   } catch (e) {
@@ -50,44 +51,44 @@ describe('Detección de solapamientos', () => {
     const res1 = await request(app)
       .post('/bookings')
       .set('X-User-Id', adminUserId)
-      .set('X-User-Role', 'admin')
-      .send({ 
-        workspaceId: workspaceId1, 
-        startDate: '2026-04-13', 
-        endDate: '2026-04-13', 
-        startTime: '19:00', 
-        endTime: '21:00', 
+      .set('X-User-Role', ROLES.ADMIN)
+      .send({
+        workspaceId: workspaceId1,
+        startDate: '2026-04-13',
+        endDate: '2026-04-13',
+        startTime: '19:00',
+        endTime: '21:00',
         days: [1], // lunes
         actividad: 'Clase 1',
         color: '#FF0000'
       });
-    
+
     console.log('=== RESERVA 1 (lunes 19:00-21:00) ===');
     console.log('Status:', res1.status);
     console.log('Body:', JSON.stringify(res1.body, null, 2));
-    
+
     expect(res1.status).toBe(201);
-    
+
     // Reserva 2: lunes 20:00-22:00 - DEBE solapar y rechazarse
     const res2 = await request(app)
       .post('/bookings')
       .set('X-User-Id', adminUserId)
-      .set('X-User-Role', 'admin')
-      .send({ 
-        workspaceId: workspaceId1, 
-        startDate: '2026-04-13', 
-        endDate: '2026-04-13', 
-        startTime: '20:00', 
-        endTime: '22:00', 
+      .set('X-User-Role', ROLES.ADMIN)
+      .send({
+        workspaceId: workspaceId1,
+        startDate: '2026-04-13',
+        endDate: '2026-04-13',
+        startTime: '20:00',
+        endTime: '22:00',
         days: [1], // lunes
         actividad: 'Clase 2',
         color: '#00FF00'
       });
-    
+
     console.log('=== RESERVA 2 (lunes 20:00-22:00, debe rechazarse) ===');
     console.log('Status:', res2.status);
     console.log('Body:', JSON.stringify(res2.body, null, 2));
-    
+
     expect(res2.status).toBe(409);
     expect(res2.body.error).toContain('Solape');
   });
@@ -98,21 +99,21 @@ describe('Detección de solapamientos', () => {
     const res1 = await request(app)
       .post('/bookings')
       .set('X-User-Id', adminUserId)
-      .set('X-User-Role', 'admin')
-      .send({ 
-        workspaceId: workspaceId1, 
-        startDate: '2026-04-14', 
-        endDate: '2026-04-14', 
-        startTime: '19:00', 
-        endTime: '21:00', 
+      .set('X-User-Role', ROLES.ADMIN)
+      .send({
+        workspaceId: workspaceId1,
+        startDate: '2026-04-14',
+        endDate: '2026-04-14',
+        startTime: '19:00',
+        endTime: '21:00',
         days: [2], // martes
         actividad: 'Clase Martes',
         color: '#0000FF'
       });
-    
+
     console.log('=== RESERVA DÍA DIFERENTE ===');
     console.log('Status:', res1.status);
-    
+
     expect(res1.status).toBe(201);
   });
 });

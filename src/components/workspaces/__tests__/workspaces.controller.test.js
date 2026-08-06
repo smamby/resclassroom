@@ -1,5 +1,6 @@
 const WorkspaceController = require('../controller');
 const WorkspaceStore = require('../store');
+const ROLES = require('../../../../common/roles');
 
 jest.mock('../store');
 
@@ -11,7 +12,7 @@ describe('WorkspaceController permission checks', () => {
   });
 
   test('updateWorkspace returns 403 for visitor', async () => {
-    const req = { user: { id: 'visitor1', role: ['visitor'] }, params: { id: 'ws1' }, body: {} };
+    const req = { user: { id: 'visitor1', role: [ROLES.VISITOR] }, params: { id: 'ws1' }, body: {} };
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     await controller.updateWorkspace(req, res);
     expect(res.status).toHaveBeenCalledWith(403);
@@ -19,7 +20,7 @@ describe('WorkspaceController permission checks', () => {
   });
 
   test('deleteWorkspace returns 403 for visitor', async () => {
-    const req = { user: { id: 'visitor1', role: ['visitor'] }, params: { id: 'ws1' } };
+    const req = { user: { id: 'visitor1', role: [ROLES.VISITOR] }, params: { id: 'ws1' } };
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     await controller.deleteWorkspace(req, res);
     expect(res.status).toHaveBeenCalledWith(403);
@@ -27,7 +28,7 @@ describe('WorkspaceController permission checks', () => {
   });
 
   test('createWorkspace returns 403 for visitor', async () => {
-    const req = { user: { id: 'visitor1', role: ['visitor'] }, body: {} };
+    const req = { user: { id: 'visitor1', role: [ROLES.VISITOR] }, body: {} };
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     await controller.createWorkspace(req, res);
     expect(res.status).toHaveBeenCalledWith(403);
@@ -44,7 +45,7 @@ describe('WorkspaceController permission checks', () => {
   test('updateWorkspace allows instructor', async () => {
     WorkspaceStore.prototype.update.mockResolvedValue({ _id: 'ws1', name: 'Quincho' });
     const req = {
-      user: { id: 'instr1', role: ['instructor'] },
+      user: { id: 'instr1', role: [ROLES.INSTRUCTOR] },
       params: { id: 'ws1' },
       body: { name: 'Quincho' }
     };

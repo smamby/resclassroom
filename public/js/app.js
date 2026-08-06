@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let workspacesFromApi = [];
     const workspacesById = {};
 
+
     async function fetchWorkspacesFromApi() {
       try {
         const res = await fetch('/workspaces', { credentials: 'include' });
@@ -96,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const uname = data?.name || data?.username || 'Usuario';
           // Persist username for UI usage
           sessionStorage.setItem('username', uname);
-          const roles = Array.isArray(data?.role) ? data.role : [data?.role || 'visitor'];
+          const roles = Array.isArray(data?.role) ? data.role : [data?.role || ROLES.VISITOR];
           sessionStorage.setItem('roles', JSON.stringify(roles));
           if (data?._id || data?.id) sessionStorage.setItem('userId', data._id || data.id);
           localStorage.setItem('loggedIn', 'true');
@@ -128,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const rolesJson = sessionStorage.getItem('roles');
       const roles = rolesJson ? JSON.parse(rolesJson) : [];
-      const isInstructorOrAdmin = roles.includes('instructor') || roles.includes('admin');
+      const isInstructorOrAdmin = roles.includes(ROLES.INSTRUCTOR) || roles.includes(ROLES.ADMIN);
 
       if (isInstructorOrAdmin) {
         fabContainer.classList.add('show');
@@ -285,11 +286,11 @@ document.addEventListener('DOMContentLoaded', () => {
               // Determine edit permission for this booking turn
               const canEdit = (function() {
                 const rolesJson = sessionStorage.getItem('roles');
-                const roles = rolesJson ? JSON.parse(rolesJson) : ['visitor'];
+                const roles = rolesJson ? JSON.parse(rolesJson) : [ROLES.VISITOR];
                 const uid = String(sessionStorage.getItem('userId') || '');
                 //console.log('[BOOKING-UI] canEdit check', act?.id, 'roles=', roles, 'uid=', uid, 'createdBy=', act?.createdByUserId);
-                if (roles.includes('admin')) return true;
-                if (roles.includes('instructor') && String(act.createdByUserId) === String(uid)) return true;
+                if (roles.includes(ROLES.ADMIN)) return true;
+                if (roles.includes(ROLES.INSTRUCTOR) && String(act.createdByUserId) === String(uid)) return true;
                 return false;
               })();
               const editIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L9 9l3.75 3.75 7-7z\"/></svg>`;
@@ -536,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const user = await res.json();
 
         const userRoles = Array.isArray(user.role) ? user.role : [];
-        if (!userRoles.includes('instructor') && !userRoles.includes('admin')) {
+        if (!userRoles.includes(ROLES.INSTRUCTOR) && !userRoles.includes(ROLES.ADMIN)) {
           aviso('No tienes permisos para crear espacios');
           return;
         }
@@ -828,7 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (res.ok) {
                 // aviso('Login exitoso');
-                const roles = Array.isArray(data.user?.role) ? data.user.role : [data.user?.role || 'visitor'];
+                const roles = Array.isArray(data.user?.role) ? data.user.role : [data.user?.role || ROLES.VISITOR];
                 sessionStorage.setItem('username', data.user?.name || 'Usuario');
                 sessionStorage.setItem('roles', JSON.stringify(roles));
                 sessionStorage.setItem('userId', data.user?._id || data.user?.id || '');

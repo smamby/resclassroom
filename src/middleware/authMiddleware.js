@@ -1,4 +1,5 @@
 const { verify, sign } = require('jsonwebtoken');
+const ROLES = require('../../common/roles');
 
 const SECRET = process.env.JWT_SECRET || 'change-me-please';
 // TTL del access token (se renueva de forma deslizante mientras haya actividad)
@@ -7,6 +8,7 @@ const ACCESS_TTL = process.env.JWT_EXPIRES_IN || '20m';
 const SESSION_TTL_MS = 40 * 60 * 1000;
 // Si al token le quedan menos de 5 min, se re-firma uno nuevo (sliding refresh)
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
+
 
 function getTokenFromCookies(cookieHeader) {
   if (!cookieHeader) return null;
@@ -81,7 +83,7 @@ function authenticate(req, res, next) {
 function authenticateAdmin(req, res, next) {
   try {
     // Skip if user is already set (e.g., by test shim)
-    if (req.user && req.user.role && Array.isArray(req.user.role) && req.user.role.includes('admin')) {
+    if (req.user && req.user.role && Array.isArray(req.user.role) && req.user.role.includes(ROLES.ADMIN)) {
       return next();
     }
     const token = getTokenFromCookies(req.headers.cookie);
@@ -92,7 +94,7 @@ function authenticateAdmin(req, res, next) {
     const payload = verifyAndMaybeRefresh(req, res, token);
     if (!payload) return;
     const roles = Array.isArray(payload.role) ? payload.role : [payload.role];
-    if (!roles.includes('admin')) {
+    if (!roles.includes(ROLES.ADMIN)) {
       return res.status(403).json({ error: 'Admin access required' });
     }
     req.user = { id: String(payload.userId), role: roles };

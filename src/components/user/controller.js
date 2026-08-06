@@ -1,5 +1,6 @@
 const User = require('./models/User');
 const UserStore = require('./store');
+const ROLES = require('../../../common/roles');
 
 class UserController {
   constructor() {
@@ -9,12 +10,12 @@ class UserController {
   async promoteUser(req, res) {
     try {
       const requester = req.user;
-      if (!requester || !Array.isArray(requester.role) || !requester.role.includes('admin')) {
+      if (!requester || !Array.isArray(requester.role) || !requester.role.includes(ROLES.ADMIN)) {
         return res.status(403).json({ error: 'Forbidden' });
       }
       const { id } = req.params;
       const { role } = req.body;
-      const allowed = ['instructor'];
+      const allowed = [ROLES.INSTRUCTOR];
       if (!allowed.includes(role)) {
         return res.status(400).json({ error: 'Invalid role' });
       }
@@ -22,7 +23,7 @@ class UserController {
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
-      const currentRoles = Array.isArray(user.role) ? user.role : ['visitor'];
+      const currentRoles = Array.isArray(user.role) ? user.role : [ROLES.VISITOR];
       if (!currentRoles.includes(role)) {
         const newRoles = [...currentRoles, role];
         await this.store.update(id, { role: newRoles, updatedAt: new Date() });
@@ -53,7 +54,7 @@ class UserController {
       const requester = req.user;
       const requestedId = req.params.id;
       const requesterRoles = Array.isArray(requester?.role) ? requester.role : [];
-      if (requesterRoles.includes('admin')) {
+      if (requesterRoles.includes(ROLES.ADMIN)) {
         const user = await this.store.findById(requestedId);
         if (user) {
           res.status(200).json(user);
@@ -104,7 +105,7 @@ class UserController {
       const requester = req.user;
       const requestedId = req.params.id;
       const requesterRoles = Array.isArray(requester?.role) ? requester.role : [];
-      const isAdmin = requesterRoles.includes('admin');
+      const isAdmin = requesterRoles.includes(ROLES.ADMIN);
       const isOwner = requester && String(requester.id) === String(requestedId);
       if (!isAdmin && !isOwner) {
         return res.status(403).json({ error: 'Forbidden' });

@@ -1,5 +1,6 @@
 const Workspace = require('./models/Workspace');
 const WorkspaceStore = require('./store');
+const ROLES = require('../../../common/roles');
 
 class WorkspaceController {
   constructor() {
@@ -9,7 +10,7 @@ class WorkspaceController {
   async createWorkspace(req, res) {
     try {
       const user = req.user;
-      if (!user || !Array.isArray(user.role) || !user.role.some(r => ['admin', 'instructor'].includes(r))) {
+      if (!user || !Array.isArray(user.role) || !user.role.some(r => [ROLES.ADMIN, ROLES.INSTRUCTOR].includes(r))) {
         return res.status(403).json({ error: 'Unauthorized to create workspaces' });
       }
       const workspaceData = {
@@ -49,7 +50,7 @@ class WorkspaceController {
   async updateWorkspace(req, res) {
     try {
       const user = req.user;
-      if (!user || !Array.isArray(user.role) || !user.role.some(r => ['admin', 'instructor'].includes(r))) {
+      if (!user || !Array.isArray(user.role) || !user.role.some(r => [ROLES.ADMIN, ROLES.INSTRUCTOR].includes(r))) {
         return res.status(403).json({ error: 'Unauthorized to modify workspaces' });
       }
       const updates = {
@@ -70,7 +71,7 @@ class WorkspaceController {
   async deleteWorkspace(req, res) {
     try {
       const user = req.user;
-      if (!user || !Array.isArray(user.role) || !user.role.some(r => ['admin', 'instructor'].includes(r))) {
+      if (!user || !Array.isArray(user.role) || !user.role.some(r => [ROLES.ADMIN, ROLES.INSTRUCTOR].includes(r))) {
         return res.status(403).json({ error: 'Unauthorized to modify workspaces' });
       }
       const result = await this.store.delete(req.params.id);

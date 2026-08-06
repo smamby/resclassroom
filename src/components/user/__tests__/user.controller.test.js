@@ -1,5 +1,6 @@
 const UserController = require('../controller');
 const UserStore = require('../store');
+const ROLES = require('../../../../common/roles');
 
 jest.mock('../store');
 
@@ -24,7 +25,7 @@ describe('UserController.getUserByEmail', () => {
       name: 'Ana',
       surname: 'Gomez',
       email: 'ana@mail.com',
-      role: 'visitor',
+      role: ROLES.VISITOR,
       passwordHash: 'secret-hash',
       resetPasswordToken: 'reset-token',
       resetPasswordExpires: new Date()
@@ -54,14 +55,14 @@ describe('UserController.createUser', () => {
       name: 'Ana',
       surname: 'Gomez',
       email: 'ana@mail.com',
-      role: ['instructor']
+      role: [ROLES.INSTRUCTOR]
     });
     const req = {
-      body: { name: 'Ana', surname: 'Gomez', email: 'ana@mail.com', role: ['instructor'] }
+      body: { name: 'Ana', surname: 'Gomez', email: 'ana@mail.com', role: [ROLES.INSTRUCTOR] }
     };
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     await controller.createUser(req, res);
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json.mock.calls[0][0].role).toEqual(['instructor']);
+    expect(res.json.mock.calls[0][0].role).toEqual([ROLES.INSTRUCTOR]);
   });
 });

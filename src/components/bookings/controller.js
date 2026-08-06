@@ -2,6 +2,7 @@ const { ObjectId } = require('mongodb');
 const Booking = require('./models/Booking');
 const BookingStore = require('./store');
 const UserStore = require('../user/store');
+const ROLES = require('../../../common/roles');
 
 function toObjectId(id) {
   if (!id) return null;
@@ -43,13 +44,13 @@ class BookingController {
       if (eb.date) return [eb.date];
       return [];
     }
-    
+
     // Parse usando UTC para consistencia con _dowUTC
     const s = eb.startDate.split('-').map(n => parseInt(n, 10));
     const e = eb.endDate.split('-').map(n => parseInt(n, 10));
     let cur = new Date(Date.UTC(s[0], s[1] - 1, s[2]));
     const end = new Date(Date.UTC(e[0], e[1] - 1, e[2]));
-    
+
     const desiredDays = Array.isArray(eb.days) ? eb.days : [];
     while (cur <= end) {
       const dow = cur.getUTCDay();
@@ -78,24 +79,24 @@ class BookingController {
   async checkOverlap(workspaceId, dateList, days, startTime, endTime, excludeBookingId = null) {
     const bookings = await this.store.findByWorkspaceAll(workspaceId);
     const newDaysSet = new Set(days.map(d => Number(d)));
-    
+
     for (const eb of bookings) {
       if (excludeBookingId && String(eb._id) === String(excludeBookingId)) continue;
-      
+
       const ebDates = this._expandBookingDates(eb);
       const ebDaysSet = new Set(eb.days || []);
-      
+
       for (const dateStr of dateList) {
         if (!ebDates.includes(dateStr)) continue;
-        
+
         const dowUTC = this._dowUTC(dateStr);
         if (ebDaysSet.size > 0 && !ebDaysSet.has(dowUTC)) continue;
-        
+
         const newStart = Date.parse(dateStr + 'T' + startTime + ':00');
         const newEnd = Date.parse(dateStr + 'T' + endTime + ':00');
         const es = Date.parse(dateStr + 'T' + eb.startTime + ':00');
         const ee = Date.parse(dateStr + 'T' + eb.endTime + ':00');
-        
+
         if (newStart < ee && newEnd > es) {
           return `Solape el ${dateStr} de ${startTime} a ${endTime}`;
         }
@@ -161,7 +162,7 @@ class BookingController {
     try {
       // Authentication/authorization
       const user = req.user;
-      if (!user || !Array.isArray(user.role) || !user.role.some(r => ['admin', 'instructor'].includes(r))) {
+      if (!user || !Array.isArray(user.role) || !user.role.some(r => [ROLES.ADMIN, ROLES.INSTRUCTOR].includes(r))) {
         return res.status(403).json({ error: 'Unauthorized to create bookings' });
       }
 
@@ -195,7 +196,7 @@ class BookingController {
       let cur = new Date(Date.UTC(s[0], s[1]-1, s[2]));
       const end = new Date(Date.UTC(e[0], e[1]-1, e[2]));
       const newDaysSet = new Set(days.map(d => Number(d)));
-      
+
       while (cur <= end) {
         const dow = cur.getUTCDay();
         if (newDaysSet.size === 0 || newDaysSet.has(dow)) {
@@ -247,18 +248,18 @@ class BookingController {
       // Authorization: positive check - admin OR (instructor AND owner)
       const userRoles = Array.isArray(user.role) ? user.role : [];
       const canModify =
-        userRoles.includes('admin') ||
-        (userRoles.includes('instructor') && String(existing.userId) === String(user.id));
+        userRoles.includes(ROLES.ADMIN) ||
+        (userRoles.includes(ROLES.INSTRUCTOR) && String(existing.userId) === String(user.id));
       if (!canModify) {
         return res.status(403).json({ error: 'Insufficient privileges to modify this booking' });
       }
 
       // Verify admin claim in DB to prevent sessionStorage manipulation
-      if (userRoles.includes('admin')) {
+      if (userRoles.includes(ROLES.ADMIN)) {
         const userStore = new UserStore();
         const dbUser = await userStore.findById(user.id);
         const dbRoles = Array.isArray(dbUser.role) ? dbUser.role : [];
-        if (!dbUser || !dbRoles.includes('admin')) {
+        if (!dbUser || !dbRoles.includes(ROLES.ADMIN)) {
           return res.status(403).json({ error: 'Invalid admin credentials' });
         }
       }
@@ -277,11 +278,11 @@ class BookingController {
       const workspaceId = updates.workspaceId || existing.workspaceId;
       const startTime = updates.startTime || existing.startTime;
       const endTime = updates.endTime || existing.endTime;
-      
+
       const updateStartDate = updates.startDate || existing.startDate;
       const updateEndDate = updates.endDate || existing.endDate;
       const updateDays = updates.days || existing.days || [];
-      
+
       // Generate dateList using same UTC logic as createBooking
       const updateDateList = [];
       if (updateStartDate && updateEndDate) {
@@ -337,18 +338,18 @@ class BookingController {
       // Authorization: positive check - admin OR (instructor AND owner)
       const userRoles = Array.isArray(user.role) ? user.role : [];
       const canDelete =
-        userRoles.includes('admin') ||
-        (userRoles.includes('instructor') && String(existing.userId) === String(user.id));
+        userRoles.includes(ROLES.ADMIN) ||
+        (userRoles.includes(ROLES.INSTRUCTOR) && String(existing.userId) === String(user.id));
       if (!canDelete) {
         return res.status(403).json({ error: 'Insufficient privileges to delete this booking' });
       }
 
       // Verify admin claim in DB to prevent sessionStorage manipulation
-      if (userRoles.includes('admin')) {
+      if (userRoles.includes(ROLES.ADMIN)) {
         const userStore = new UserStore();
         const dbUser = await userStore.findById(user.id);
         const dbRoles = Array.isArray(dbUser.role) ? dbUser.role : [];
-        if (!dbUser || !dbRoles.includes('admin')) {
+        if (!dbUser || !dbRoles.includes(ROLES.ADMIN)) {
           return res.status(403).json({ error: 'Invalid admin credentials' });
         }
       }

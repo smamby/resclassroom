@@ -1,5 +1,6 @@
 const AuthController = require('../controller');
 const UserStore = require('../../user/store');
+const ROLES = require('../../../../common/roles');
 
 jest.mock('../../user/store');
 
@@ -32,7 +33,7 @@ describe('AuthController.me', () => {
       name: 'Ana',
       surname: 'Gomez',
       email: 'ana@mail.com',
-      role: ['admin'],
+      role: [ROLES.ADMIN],
       createdAt: new Date(),
       passwordHash: 'secret-hash'
     });
@@ -42,7 +43,7 @@ describe('AuthController.me', () => {
     expect(res.status).toHaveBeenCalledWith(200);
     const body = res.json.mock.calls[0][0];
     expect(body.email).toBe('ana@mail.com');
-    expect(body.role).toEqual(['admin']);
+    expect(body.role).toEqual([ROLES.ADMIN]);
     expect(body.passwordHash).toBeUndefined();
   });
 });

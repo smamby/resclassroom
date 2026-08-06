@@ -1,5 +1,6 @@
 const request = require('supertest');
 const { ObjectId } = require('mongodb');
+const ROLES = require('../../common/roles');
 let app;
 let adminUserId;
 let instructorUserId;
@@ -56,7 +57,7 @@ describe('Bookings validation', () => {
     const res = await request(app)
       .post('/bookings')
       .set('X-User-Id', adminUserId)
-      .set('X-User-Role', '["admin"]')
+      .set('X-User-Role', JSON.stringify([ROLES.ADMIN]))
       .send({ workspaceId: fakeWsId.toString(), startDate: '2026-04-13', endDate: '2026-04-13', startTime: '10:00', endTime: '11:00', days: [0], actividad: 'Clase' });
     expect(res.status).toBe(400);
   });
@@ -65,7 +66,7 @@ describe('Bookings validation', () => {
     const res = await request(app)
       .post('/bookings')
       .set('X-User-Id', adminUserId)
-      .set('X-User-Role', '["admin"]')
+      .set('X-User-Role', JSON.stringify([ROLES.ADMIN]))
       .send({ workspaceId: workspaceId1 });
     expect(res.status).toBe(400);
   });
@@ -76,7 +77,7 @@ describe('Bookings success flow (minimal)', () => {
     const res = await request(app)
       .post('/bookings')
       .set('X-User-Id', adminUserId)
-      .set('X-User-Role', '["admin"]')
+      .set('X-User-Role', JSON.stringify([ROLES.ADMIN]))
       .send({ workspaceId: workspaceId1, startDate: '2026-04-15', endDate: '2026-04-15', startTime: '14:00', endTime: '15:00', days: [2], actividad: 'Test minimal' });
     expect(res.status).toBe(201);
   });

@@ -1,9 +1,4 @@
-const ROLES = {
-  ADMIN: 'admin',
-  INSTRUCTOR: 'instructor',
-  VISITOR: 'visitor',
-  SUBCO: 'subco'
-};
+const ROLES = require('../../../../common/roles');
 
 class User {
   constructor(data) {

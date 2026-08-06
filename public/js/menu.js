@@ -1,10 +1,10 @@
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = factory();
+    module.exports = factory(require('../../common/roles'));
   } else {
-    root.ResClassroomMenu = factory();
+    root.ResClassroomMenu = factory(root.ROLES);
   }
-})(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function (ROLES) {
   const MENU_ITEMS = {
     'mi-cuenta': { label: 'Mi cuenta' },
     'mis-reservas': { label: 'Mis Reservas' },
@@ -17,9 +17,9 @@
 
   const MENU_CONFIG = {
     base: ['mi-cuenta', 'logout'],
-    admin: ['gestionar-usuarios', 'gestionar-espacios', 'mis-reservas'],
-    instructor: ['mis-reservas'],
-    subco: ['votar', 'cursos']
+    [ROLES.ADMIN]: ['gestionar-usuarios', 'gestionar-espacios', 'mis-reservas'],
+    [ROLES.INSTRUCTOR]: ['mis-reservas'],
+    [ROLES.SUBCO]: ['votar', 'cursos']
   };
 
   // Unión de base + extras por rol, sin duplicados. El orden de claves de

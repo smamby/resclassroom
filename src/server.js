@@ -26,6 +26,8 @@ if (process.env.TEST_AUTH === '1') {
 }
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+app.use('/common', express.static(path.join(__dirname, '../common')));
+
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
