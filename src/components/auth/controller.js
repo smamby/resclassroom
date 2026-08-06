@@ -7,6 +7,21 @@ const { sign } = jwt;
 const SECRET = process.env.JWT_SECRET || 'change-me-please';
 const ACCESS_TTL = process.env.JWT_EXPIRES_IN || '20m';
 
+const isDeployed = process.env.NODE_ENV === 'production';
+
+const tokenCookieDevelopment = {
+  httpOnly: true,
+  sameSite: 'lax',
+  maxAge: 20 * 60 * 1000
+}
+
+const tokenCookieProduction = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'lax',
+  maxAge: 20 * 60 * 1000
+}
+
 class AuthController {
     constructor() {
       this.store = new UserStore();
@@ -69,7 +84,10 @@ class AuthController {
       const roles = Array.isArray(created.role) ? created.role : [created.role];
       const token = sign({ userId: String(created._id), role: roles, sessionIat: Math.floor(Date.now() / 1000) }, SECRET, { expiresIn: ACCESS_TTL });
       // Send token as HttpOnly cookie
-      res.cookie('tokenAuth', token, { httpOnly: true, sameSite: 'lax', maxAge: 20 * 60 * 1000 });
+      res.cookie('tokenAuth', token, isDeployed
+        ? tokenCookieProduction
+        : tokenCookieDevelopment
+      );
       res.status(201).json({ user: created });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -94,7 +112,10 @@ class AuthController {
       }
       const userRoles = Array.isArray(user.role) ? user.role : [user.role];
       const token = sign({ userId: String(user._id), role: userRoles, sessionIat: Math.floor(Date.now() / 1000) }, SECRET, { expiresIn: ACCESS_TTL });
-      res.cookie('tokenAuth', token, { httpOnly: true, sameSite: 'lax', maxAge: 20 * 60 * 1000 });
+      res.cookie('tokenAuth', token, isDeployed
+        ? tokenCookieProduction
+        : tokenCookieDevelopment
+      );
       const sanitizedUser = {
         _id: user._id,
         name: user.name,
