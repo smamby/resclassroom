@@ -38,11 +38,16 @@ class User {
     this.passwordHash = data.passwordHash;
     this.resetPasswordToken = data.resetPasswordToken || null;
     this.resetPasswordExpires = data.resetPasswordExpires || null;
+    // Versión de contraseña para invalidar sesiones al cambiarla (claim pwdv del JWT)
+    this.passwordVersion = data.passwordVersion || 0;
+    // Token de confirmación de borrado de cuenta (link por email)
+    this.deleteAccountToken = data.deleteAccountToken || null;
+    this.deleteAccountExpires = data.deleteAccountExpires || null;
     this.createdAt = data.createdAt || new Date();
   }
 
   toJSON() {
-    const { passwordHash, resetPasswordToken, ...rest } = this;
+    const { passwordHash, resetPasswordToken, deleteAccountToken, deleteAccountExpires, ...rest } = this;
     return rest;
   }
 }

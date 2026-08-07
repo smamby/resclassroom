@@ -31,7 +31,7 @@ class UserStore {
     const oid = toObjectId(id);
     const user = await collection.findOne({ _id: oid });
     if (!user) return null;
-    const { passwordHash, _id, ...rest } = user;
+    const { passwordHash, resetPasswordToken, resetPasswordExpires, deleteAccountToken, deleteAccountExpires, _id, ...rest } = user;
     return { _id, ...rest };
   }
 
@@ -46,7 +46,7 @@ class UserStore {
     const collection = db.collection('users');
     const users = await collection.find({}).toArray();
     return users.map(u => {
-      const { passwordHash, _id, ...rest } = u;
+      const { passwordHash, resetPasswordToken, resetPasswordExpires, deleteAccountToken, deleteAccountExpires, _id, ...rest } = u;
       return { _id, ...rest };
     });
   }
@@ -61,7 +61,7 @@ class UserStore {
       { returnDocument: 'after' }
     );
     if (result && result.value) {
-      const { passwordHash, _id, ...rest } = result.value;
+      const { passwordHash, resetPasswordToken, resetPasswordExpires, deleteAccountToken, deleteAccountExpires, _id, ...rest } = result.value;
       return { _id, ...rest };
     }
     return result;
@@ -73,6 +73,44 @@ class UserStore {
     const oid = toObjectId(id);
     const result = await collection.deleteOne({ _id: oid });
     return result.deletedCount > 0;
+  }
+
+  // Devuelve el documento completo (incluye passwordHash), para verificar contraseñas
+  async findByIdFull(id) {
+    const db = getDb();
+    const collection = db.collection('users');
+    const oid = toObjectId(id);
+    return await collection.findOne({ _id: oid });
+  }
+
+  // Registra el token de confirmación de borrado de cuenta
+  async setDeleteToken(userId, token, expires) {
+    const db = getDb();
+    const collection = db.collection('users');
+    await collection.updateOne(
+      { _id: toObjectId(userId) },
+      { $set: { deleteAccountToken: token, deleteAccountExpires: expires } }
+    );
+  }
+
+  // Busca usuario por token de borrado no expirado
+  async findByDeleteToken(token) {
+    const db = getDb();
+    const collection = db.collection('users');
+    return await collection.findOne({
+      deleteAccountToken: token,
+      deleteAccountExpires: { $gt: Date.now() }
+    });
+  }
+
+  // Limpia el token de borrado (cancelación o expiración)
+  async clearDeleteToken(userId) {
+    const db = getDb();
+    const collection = db.collection('users');
+    await collection.updateOne(
+      { _id: toObjectId(userId) },
+      { $set: { deleteAccountToken: null, deleteAccountExpires: null } }
+    );
   }
 }
 
