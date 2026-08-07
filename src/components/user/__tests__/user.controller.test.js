@@ -231,6 +231,42 @@ describe('UserController.deleteAccountByToken', () => {
   });
 });
 
+describe('UserController /me endpoints require authentication', () => {
+  let controller;
+  beforeEach(() => {
+    controller = new UserController();
+    jest.clearAllMocks();
+  });
+
+  test('updateMyProfile returns 401 when req.user is null', async () => {
+    const req = { user: null, body: { name: 'Ana', surname: 'Gomez' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.updateMyProfile(req, res);
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  test('changeMyPassword returns 401 when req.user is null', async () => {
+    const req = { user: null, body: { currentPassword: 'a', newPassword: 'b' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.changeMyPassword(req, res);
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  test('deleteMyAccount returns 401 when req.user is null', async () => {
+    const req = { user: null, body: { password: 'a' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.deleteMyAccount(req, res);
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  test('cancelDeleteAccount returns 401 when req.user is null', async () => {
+    const req = { user: null, body: {} };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.cancelDeleteAccount(req, res);
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+});
+
 describe('UserController.updateUser email immutability', () => {
   test('owner update strips email from updates', async () => {
     const controller = new UserController();

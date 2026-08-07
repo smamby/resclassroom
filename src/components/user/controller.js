@@ -24,6 +24,9 @@ class UserController {
 
   async updateMyProfile(req, res) {
     try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
       const body = req.body || {};
       const allowed = ['name', 'surname'];
       const forbidden = Object.keys(body).filter(k => !allowed.includes(k));
@@ -47,6 +50,9 @@ class UserController {
 
   async changeMyPassword(req, res) {
     try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
       const { currentPassword, newPassword } = req.body || {};
       if (!currentPassword || !newPassword) {
         return res.status(400).json({ error: 'Contraseña actual y nueva son requeridas' });
@@ -78,6 +84,9 @@ class UserController {
 
   async deleteMyAccount(req, res) {
     try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
       const { password } = req.body || {};
       if (!password) {
         return res.status(400).json({ error: 'Contraseña requerida' });
@@ -113,6 +122,9 @@ class UserController {
 
   async cancelDeleteAccount(req, res) {
     try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
       await this.store.clearDeleteToken(req.user.id);
       res.status(200).json({ message: 'Borrado cancelado' });
     } catch (error) {
