@@ -30,7 +30,7 @@ class BookingStore {
   async findAll() {
     const db = getDb();
     const collection = db.collection('bookings');
-    return await collection.find({}).toArray();
+    return await collection.find({ deleted: { $ne: true } }).toArray();
   }
 
   async update(id, updates) {
@@ -69,6 +69,7 @@ class BookingStore {
     const today = new Date().toISOString().split('T')[0];
     return await collection.find({ 
       workspaceId,
+      deleted: { $ne: true },
       $or: [
         { endDate: { $gte: today } },
         { endDate: { $exists: false } },
@@ -81,7 +82,7 @@ class BookingStore {
   async findByWorkspaceAll(workspaceId) {
     const db = getDb();
     const collection = db.collection('bookings');
-    return await collection.find({ workspaceId }).toArray();
+    return await collection.find({ workspaceId, deleted: { $ne: true } }).toArray();
   }
 
   // Extra helper to find bookings by workspace and date for solape checks
@@ -89,6 +90,43 @@ class BookingStore {
     const db = getDb();
     const collection = db.collection('bookings');
     return await collection.find({ workspaceId, date }).toArray();
+  }
+
+  // Reservas activas/futuras confirmadas de un usuario (las que se marcan al borrar cuenta)
+  async findActiveByUser(userId) {
+    const db = getDb();
+    const collection = db.collection('bookings');
+    const today = new Date().toISOString().split('T')[0];
+    return await collection.find({
+      userId,
+      status: 'confirmed',
+      deleted: { $ne: true },
+      $or: [
+        { endDate: { $gte: today } },
+        { endDate: { $exists: false } },
+        { endDate: null }
+      ]
+    }).toArray();
+  }
+
+  // Soft-delete de las reservas activas de un usuario (nunca hard-delete)
+  async softDeleteActiveByUser(userId) {
+    const db = getDb();
+    const collection = db.collection('bookings');
+    const today = new Date().toISOString().split('T')[0];
+    const result = await collection.updateMany(
+      {
+        userId,
+        status: 'confirmed',
+        $or: [
+          { endDate: { $gte: today } },
+          { endDate: { $exists: false } },
+          { endDate: null }
+        ]
+      },
+      { $set: { deleted: true, deletedAt: new Date() } }
+    );
+    return result.modifiedCount || 0;
   }
 }
 

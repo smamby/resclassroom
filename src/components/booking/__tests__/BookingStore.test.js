@@ -8,10 +8,11 @@ jest.mock('../../../db', () => ({
 describe('BookingStore', () => {
   let mockDbInstance;
   let mockData;
+  let bookingsCol;
   beforeEach(() => {
     mockData = { bookings: [], workspaces: [{ _id: 'w1', name: 'WS1' }] };
 
-    const bookingsCol = {
+    bookingsCol = {
       insertOne: async (doc) => {
         doc._id = 'b1';
         mockData.bookings.push(doc);
@@ -89,5 +90,39 @@ describe('BookingStore', () => {
     const list = await store.findByWorkspaceAndDate('w1', '2026-04-02');
     expect(Array.isArray(list)).toBe(true);
     expect(list.length).toBeGreaterThan(0);
+  });
+
+  test('findAll excludes soft-deleted bookings', async () => {
+    let captured;
+    bookingsCol.find = (filter) => { captured = filter; return { toArray: async () => [] }; };
+    const store = new BookingStore();
+    await store.findAll();
+    expect(captured).toEqual({ deleted: { $ne: true } });
+  });
+
+  test('findActiveByUser builds active/future filter', async () => {
+    let captured;
+    bookingsCol.find = (filter) => { captured = filter; return { toArray: async () => [] }; };
+    const store = new BookingStore();
+    await store.findActiveByUser('u1');
+    expect(captured.userId).toBe('u1');
+    expect(captured.status).toBe('confirmed');
+    expect(captured.deleted).toEqual({ $ne: true });
+    expect(Array.isArray(captured.$or)).toBe(true);
+  });
+
+  test('softDeleteActiveByUser marks active bookings as deleted', async () => {
+    let capturedFilter;
+    let capturedUpdate;
+    bookingsCol.updateMany = async (filter, update) => {
+      capturedFilter = filter;
+      capturedUpdate = update;
+      return { modifiedCount: 3 };
+    };
+    const store = new BookingStore();
+    const count = await store.softDeleteActiveByUser('u1');
+    expect(count).toBe(3);
+    expect(capturedFilter.userId).toBe('u1');
+    expect(capturedUpdate.$set.deleted).toBe(true);
   });
 });

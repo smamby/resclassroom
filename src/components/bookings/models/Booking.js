@@ -24,6 +24,10 @@ class Booking {
     this.modifiedAt = data.modifiedAt || null;
     this.modifiedByName = data.modifiedByName || null;
 
+    // Soft-delete: reserva borrada (invisible en calendario) pero presente en DB
+    this.deleted = data.deleted ?? false;
+    this.deletedAt = data.deletedAt || null;
+
     // Backward compatible id field
     this.id = data.id || null;
   }
