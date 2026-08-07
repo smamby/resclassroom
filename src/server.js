@@ -42,6 +42,10 @@ app.get('/reset-password/:token', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'reset-password.html'));
 });
 
+app.get('/delete-account/:token', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'delete-account.html'));
+});
+
 // Rutas y error handler se montan a nivel de módulo para que la app exportada
 // (usada por los tests de integración con supertest) tenga todas las rutas
 routes(app);

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmar borrado de cuenta - ReservaWorkspaces</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: var(--bg-primary); }
+    .reset-container { background: var(--bg-secondary); padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+    h2 { margin-bottom: 1.5rem; color: var(--text-primary); }
+    p { color: var(--text-secondary); }
+    .btn-primary { width: 100%; padding: 0.75rem; background: #4A90D9; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
+    .btn-primary:hover { background: #357ABD; }
+    .error { color: #d32f2f; margin-bottom: 1rem; }
+    .success { color: #388E3C; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="reset-container">
+    <h2 id="title">Confirmar borrado de cuenta</h2>
+    <div id="message"></div>
+    <div id="confirmBox" style="display:none;">
+      <p>Estás por eliminar tu cuenta. Esta acción es definitiva: tus reservas activas se marcarán como borradas y quedarán a disposición del admin.</p>
+      <button id="confirmBtn" class="btn-primary" style="margin-top:1rem;">Confirmar borrado de cuenta</button>
+    </div>
+  </div>
+  <script>
+    const path = window.location.pathname;
+    const token = path.split('/delete-account/')[1];
+    const message = document.getElementById('message');
+    const confirmBox = document.getElementById('confirmBox');
+
+    if (!token) {
+      message.innerHTML = '<p class="error">Enlace inválido</p>';
+    } else {
+      confirmBox.style.display = 'flex';
+      confirmBox.style.flexDirection = 'column';
+      confirmBox.style.gap = '1rem';
+      document.getElementById('confirmBtn').addEventListener('click', async () => {
+        try {
+          const res = await fetch('/delete-account/' + token, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const data = await res.json();
+          if (res.ok) {
+            document.getElementById('title').textContent = '¡Listo!';
+            confirmBox.remove();
+            message.innerHTML = '<p class="success">Tu cuenta fue eliminada. <a href="/" style="text-decoration: none; color: #4A90D9;">Volver al inicio</a></p>';
+          } else {
+            message.innerHTML = '<p class="error">' + (data.error || 'Error') + '</p>';
+          }
+        } catch (err) {
+          message.innerHTML = '<p class="error">Error de conexión</p>';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
