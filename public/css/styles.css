@@ -1398,3 +1398,97 @@ body::before {
         scrollbar-gutter: stable;
     }
 }
+
+/* ---------- Modal "Mi cuenta" ---------- */
+
+#miCuentaModal .modal-content {
+    max-width: 480px;
+    padding: 1.5rem;
+    color: var(--text-primary);
+}
+
+.account-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.account-tab {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.account-tab:hover {
+    color: var(--text-primary);
+}
+
+.account-tab.active {
+    color: var(--brand-blue-light);
+    border-bottom-color: var(--brand-blue);
+}
+
+.account-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 0.9rem 1rem;
+}
+
+.account-info div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.9rem;
+}
+
+.account-info-label {
+    color: var(--text-secondary);
+}
+
+.danger-zone {
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+}
+
+.danger-zone p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 0 0 0.5rem;
+}
+
+.btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.7rem 1.2rem;
+    border: none;
+    border-radius: var(--radius-full);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.35);
+}
