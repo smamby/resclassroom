@@ -1128,9 +1128,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
           <div id="accountPanelEliminar" class="account-tab-panel" hidden>
             <div class="danger-zone">
-              <p>Borrar tu cuenta es definitivo. Tus reservas activas se marcarán como borradas y quedarán a disposición del admin.</p>
+              <p>Borrar tu cuenta es definitivo. Tus reservas activas se perderan.</p>
               <div id="miCuentaPendingDelete" hidden>
-                <p>Tienes un borrado pendiente. Revisa tu email para confirmarlo, o cancela aquí.</p>
+                <p>El borrado de tu cuenta esta pendiente. Revisa tu email para confirmarlo, o cancela la operación desde aquí.</p>
                 <button type="button" id="miCuentaCancelDeleteBtn" class="btn-secondary">Cancelar borrado</button>
               </div>
               <form id="miCuentaDeleteForm" style="display:flex;flex-direction:column;gap:1rem;margin-top:1rem;">
