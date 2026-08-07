@@ -1,10 +1,78 @@
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('./models/User');
 const UserStore = require('./store');
+const BookingStore = require('../bookings/store');
+const EmailService = require('../reset-password/emailService');
 const ROLES = require('../../../common/roles');
+
+const { sign } = jwt;
+const SECRET = process.env.JWT_SECRET || 'change-me-please';
+const ACCESS_TTL = process.env.JWT_EXPIRES_IN || '20m';
+const DELETE_TOKEN_TTL_MS = 20 * 60 * 1000;
+const isDeployed = process.env.NODE_ENV === 'production';
+const tokenCookieDevelopment = { httpOnly: true, sameSite: 'lax', maxAge: 20 * 60 * 1000 };
+const tokenCookieProduction = { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 20 * 60 * 1000 };
 
 class UserController {
   constructor() {
     this.store = new UserStore();
+    this.bookingStore = new BookingStore();
+    this.emailService = new EmailService();
+  }
+
+  async updateMyProfile(req, res) {
+    try {
+      const body = req.body || {};
+      const allowed = ['name', 'surname'];
+      const forbidden = Object.keys(body).filter(k => !allowed.includes(k));
+      if (forbidden.length > 0) {
+        return res.status(400).json({ error: `Campo no permitido: ${forbidden[0]}` });
+      }
+      const name = typeof body.name === 'string' ? body.name.trim() : '';
+      const surname = typeof body.surname === 'string' ? body.surname.trim() : '';
+      if (!name || !surname) {
+        return res.status(400).json({ error: 'Nombre y apellido son requeridos' });
+      }
+      const updated = await this.store.update(req.user.id, { name, surname, updatedAt: new Date() });
+      if (!updated) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      res.status(200).json(updated);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async changeMyPassword(req, res) {
+    try {
+      const { currentPassword, newPassword } = req.body || {};
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Contraseña actual y nueva son requeridas' });
+      }
+      const user = await this.store.findByIdFull(req.user.id);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      if (!bcrypt.compareSync(currentPassword, user.passwordHash || '')) {
+        return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+      }
+      const passwordHash = bcrypt.hashSync(newPassword, 10);
+      const passwordVersion = (user.passwordVersion || 0) + 1;
+      await this.store.update(req.user.id, { passwordHash, passwordVersion, updatedAt: new Date() });
+      // Re-emitir token con el nuevo pwdv: la sesión actual sigue viva, las demás mueren
+      const roles = Array.isArray(user.role) ? user.role : [user.role];
+      const token = sign(
+        { userId: String(user._id), role: roles, sessionIat: Math.floor(Date.now() / 1000), pwdv: passwordVersion },
+        SECRET,
+        { expiresIn: ACCESS_TTL }
+      );
+      res.cookie('tokenAuth', token, isDeployed ? tokenCookieProduction : tokenCookieDevelopment);
+      const updated = await this.store.findById(req.user.id);
+      res.status(200).json(updated);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
   }
 
   async promoteUser(req, res) {
