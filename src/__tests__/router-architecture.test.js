@@ -72,5 +72,16 @@ describe('Express Router Architecture', () => {
 
       expect(routesRegistered.some(r => r.includes('users'))).toBe(true);
     });
+
+    test('should mount delete-account router', () => {
+      const routes = require('../routes');
+      routes(app);
+
+      const routesRegistered = app._router.stack
+        .filter(r => r.name === 'router')
+        .map(r => r.regexp.source);
+
+      expect(routesRegistered.some(r => r.includes('delete-account'))).toBe(true);
+    });
   });
 });

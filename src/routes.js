@@ -8,6 +8,7 @@ const resetPasswordRoutes = require('./components/reset-password/network');
 function routes(server) {
   server.use('/workspaces', workspaces);
   server.use('/users', users);
+  server.use('/delete-account', users.deleteAccountRouter);
   server.use('/auth', authRouter);
   server.use('/', resetPasswordRoutes);
   // Mount the bookings module under the bookings subpath with auth
