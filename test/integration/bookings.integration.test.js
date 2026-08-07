@@ -6,10 +6,13 @@ let adminUserId;
 let instructorUserId;
 let workspaceId1;
 let workspaceId2;
+let createdBookingIds = [];
+let runMarker;
 
 beforeAll(async () => {
   process.env.TEST_AUTH = '1';
   app = require('../../src/server');
+  runMarker = Date.now().toString(36);
   try {
     const dbModule = require('../../src/db');
     if (typeof dbModule.connectToDatabase === 'function') {
@@ -39,13 +42,13 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Limpieza por _id exacto: solo borra lo que el test creó, nunca datos reales
+  if (createdBookingIds.length === 0) return;
   try {
     const dbModule = require('../../src/db');
     const db = dbModule.getDb();
-    // Borrar todos los bookings de test (por actividad que contenga ciertas palabras)
-    await db.collection('bookings').deleteMany({ 
-      actividad: { $in: ['Test minimal', 'Clase test', 'Clase', 'Clase 1', 'Clase 2', 'Clase Martes'] }
-    });
+    const oids = createdBookingIds.map(id => new ObjectId(id));
+    await db.collection('bookings').deleteMany({ _id: { $in: oids } });
   } catch (e) {
     console.warn('Cleanup skipped:', e && e.message);
   }
@@ -78,7 +81,10 @@ describe('Bookings success flow (minimal)', () => {
       .post('/bookings')
       .set('X-User-Id', adminUserId)
       .set('X-User-Role', JSON.stringify([ROLES.ADMIN]))
-      .send({ workspaceId: workspaceId1, startDate: '2026-04-15', endDate: '2026-04-15', startTime: '14:00', endTime: '15:00', days: [2], actividad: 'Test minimal' });
+      .send({ workspaceId: workspaceId1, startDate: '2026-04-15', endDate: '2026-04-15', startTime: '14:00', endTime: '15:00', days: [2], actividad: `Test minimal ${runMarker}` });
     expect(res.status).toBe(201);
+    if (res.body && res.body._id) {
+      createdBookingIds.push(res.body._id);
+    }
   });
 });

@@ -6,6 +6,7 @@ const { connectToDatabase, closeDatabaseConnection } = require('./db');
 
 const app = express();
 let server;
+let isShuttingDown = false;
 
 app.use(express.json());
 
@@ -41,31 +42,54 @@ app.get('/reset-password/:token', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'reset-password.html'));
 });
 
+// Rutas y error handler se montan a nivel de módulo para que la app exportada
+// (usada por los tests de integración con supertest) tenga todas las rutas
+routes(app);
+
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ error: 'Something went wrong!' });
+});
+
 
 function gracefulShutdown(signal) {
+  if (isShuttingDown) {
+    console.log(`Señal ${signal} ignorada, apagado en curso.`);
+    return;
+  }
+  isShuttingDown = true;
   console.log(`Recibida señal ${signal}. Cerrando conexiones...`);
 
-  if (server) {
-    server.close( async () => {
-      console.log('Servidor cerrado correctamente.');
-      try {
-        await closeDatabaseConnection();
-        console.log('Cierre ordenado finalizado.');
-        process.exit(0);
-      } catch (err) {
-        console.error('Error al cerrar la base de datos:', err);
-        process.exit(1);
-      }
-    });
+  const finalize = async () => {
+    try {
+      await closeDatabaseConnection();
+      console.log('Cierre ordenado finalizado.');
+      process.exit(0);
+    } catch (err) {
+      console.error('Error al cerrar la base de datos:', err);
+      process.exit(1);
+    }
+  };
 
-    // Timeout de seguridad (8s)
-    setTimeout(() => {
+  if (server) {
+    const forceExitTimer = setTimeout(() => {
       console.error('Timeout de 8s alcanzado, forzando salida.');
       process.exit(1);
     }, 8000);
+
+    server.close(() => {
+      console.log('Servidor cerrado correctamente.');
+      clearTimeout(forceExitTimer);
+      finalize();
+    });
+
+    // Fuerza cierre de conexiones HTTP keep-alive inactivas (Node >= 18.2)
+    if (typeof server.closeAllConnections === 'function') {
+      server.closeAllConnections();
+    }
   } else {
-    // Si el servidor aún no se inició, salimos directamente
-    process.exit(0);
+    // Servidor aún no iniciado: cerramos la DB si está abierta
+    finalize();
   }
 }
 
@@ -77,12 +101,6 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 const startServer = async () => {
     try {
         await connectToDatabase();
-        routes(app);
-
-        app.use((err, req, res, next) => {
-            console.error(err.stack);
-            res.status(500).json({ error: 'Something went wrong!' });
-        });
 
         const PORT = process.env.PORT || 3000;
         server = app.listen(PORT, '0.0.0.0', () => {
@@ -94,6 +112,10 @@ const startServer = async () => {
     }
 };
 
-startServer();
+// Solo arranca el server cuando se ejecuta directamente (node src/server.js).
+// Al importarlo (tests de integración con supertest) se expone la app sin abrir puertos.
+if (require.main === module) {
+    startServer();
+}
 
-//module.exports = app;
+module.exports = app; // se exporta solo para Jest
