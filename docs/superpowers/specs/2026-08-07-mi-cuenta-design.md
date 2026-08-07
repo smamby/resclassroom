@@ -12,8 +12,9 @@ Feature self-service accesible desde el item "Mi cuenta" del menú de usuario (b
 2. Al cambiar la contraseña se invalidan las otras sesiones activas (mecánica `passwordVersion` en el JWT).
 3. Sin reglas de fortaleza de contraseña (solo no vacía, coherente con el registro actual).
 4. Extras: info read-only del usuario, eliminar mi cuenta, confirmaciones visuales vía `aviso()`.
-5. Eliminar cuenta: se bloquea si hay reservas activas; el mensaje ofrece botón "Borrar reservas"; luego confirmación por email (segundo factor).
-6. Email inmutable en todo el sistema (incluido el admin).
+5. Eliminar cuenta: confirmación por email (segundo factor). No se bloquea por reservas: al confirmar el borrado desde el email, las reservas activas/futuras del usuario se **marcan como borradas** (soft-delete) y quedan invisibilizadas del calendario pero presentes en la DB. No se hard-deletean.
+6. El soft-delete es solo para reservas activas/futuras confirmadas; se ejecuta al momento de la confirmación del borrado (no al pedirlo), para que "Cancelar borrado" no toque reservas.
+7. Email inmutable en todo el sistema (incluido el admin).
 
 ## Alcance
 
@@ -35,16 +36,14 @@ Endpoints nuevos (autenticados salvo indicación contraria):
 - `DELETE /users/me`
   - Body: `{ password }`.
   - Verifica la contraseña (401 si falla).
-  - Si hay reservas activas del usuario → 409 `{ error: 'Tienes reservas activas. Debes cancelarlas para poder borrar tu cuenta', hasActiveBookings: true }`.
-  - Si no hay reservas: genera `deleteAccountToken` (hex aleatorio) + `deleteAccountExpires` (20 min), los guarda en el usuario, envía email de confirmación. Si el envío falla → 500 `{ error: 'No pudimos enviar el correo de confirmación. Reintenta.' }` y limpia el token (no queda pendiente).
-  - En éxito responde mensaje genérico (200): `{ message: 'Te hemos enviado un correo para confirmar el borrado.' }`. La sesión sigue viva hasta confirmar o expirar el token.
-- `DELETE /users/me/bookings`
-  - Borra todas las reservas activas del usuario. Respuesta 200 con cantidad borrada.
+  - Cuenta las reservas activas/futuras del usuario (para informarlo en el modal) y lo incluye en la respuesta como `activeBookings`. **No modifica reservas** en este paso.
+  - Genera `deleteAccountToken` (hex aleatorio) + `deleteAccountExpires` (20 min), los guarda en el usuario, envía email de confirmación. Si el envío falla → 500 `{ error: 'No pudimos enviar el correo de confirmación. Reintenta.' }` y limpia el token (no queda pendiente).
+  - En éxito responde (200): `{ message: 'Te hemos enviado un correo para confirmar el borrado.', activeBookings: n }`. La sesión sigue viva hasta confirmar o expirar el token.
 - `POST /users/me/cancel-delete`
-  - Limpia `deleteAccountToken`/`deleteAccountExpires`. 200. Idempotente.
+  - Limpia `deleteAccountToken`/`deleteAccountExpires`. 200. Idempotente. No toca reservas.
 - `POST /delete-account/:token` — público (el token es la credencial)
   - Busca usuario por `deleteAccountToken` + `deleteAccountExpires > now`. Inválido/expirado → 400 `{ error: 'El enlace es inválido o ha expirado' }`.
-  - Re-chequea reservas activas (por si creó alguna después de pedir el borrado) → 409 con el mismo mensaje y `hasActiveBookings: true`.
+  - Marca como borradas (soft-delete) las reservas activas/futuras del usuario (nunca hard-delete).
   - Borra la cuenta, limpia la cookie `tokenAuth`. 200 `{ message: 'Cuenta eliminada correctamente' }`.
 - `PUT /users/:id` (existente): se agrega `delete updates.email` siempre (owner y admin). El email no se puede cambiar en el sistema.
 
@@ -71,11 +70,14 @@ Los roles solo se adjudican/modifican por admin (`POST /users/:id/promote`, `POS
   - `findByDeleteToken(token)` (valida `deleteAccountExpires > now`).
   - `clearDeleteToken(userId)`.
   - `findById`/`findAll`/`update` deben seguir ocultando `passwordHash`, `resetPasswordToken` y `deleteAccountToken`.
+- `Booking` (`src/components/bookings/models/Booking.js`):
+  - Nuevos campos `deleted` (default `false`) y `deletedAt` (default `null`). El soft-delete no cambia `status`.
 - `BookingStore` (`src/components/bookings/store.js`):
-  - `findActiveByUser(userId)`: reservas con `status='confirmed'` y `endDate >= hoy` (o `endDate` ausente).
-  - `deleteByUser(userId)`: borra las reservas activas de un usuario. Devuelve `deletedCount`.
+  - `findActiveByUser(userId)`: reservas con `status='confirmed'`, no borradas y `endDate >= hoy` (o `endDate` ausente).
+  - `softDeleteActiveByUser(userId)`: marca como borradas las reservas activas/futuras de un usuario (`$set: { deleted: true, deletedAt: new Date() }`). Devuelve `modifiedCount`.
+  - `findAll`, `findByWorkspace` y `findByWorkspaceAll` deben excluir las reservas borradas (`deleted: { $ne: true }`), para que no aparezcan en el calendario ni bloqueen solapamientos.
 
-Definición de reserva activa: `status === 'confirmed'` y `endDate >= fecha de hoy (YYYY-MM-DD)` o `endDate` no presente.
+Definición de reserva activa/futura: `status === 'confirmed'`, `deleted !== true` y `endDate >= fecha de hoy (YYYY-MM-DD)` o `endDate` no presente.
 
 ### Frontend (`public/js/app.js`, `public/js/menu.js`, `public/css/styles.css`)
 
@@ -85,8 +87,7 @@ Definición de reserva activa: `status === 'confirmed'` y `endDate >= fecha de h
   - **Contraseña**: contraseña actual, nueva, repetir nueva + Guardar → `PUT /users/me/password`. Validación cliente: repetir debe coincidir. Al éxito: `aviso('Contraseña actualizada. Otras sesiones fueron cerradas.')`.
   - **Eliminar cuenta**: zona de peligro. Input de contraseña + botón "Eliminar mi cuenta".
     - Estado pendiente: la app guarda la flag `pendingAccountDeletion` en `sessionStorage` cuando `DELETE /users/me` responde 200. Si está activa, la pestaña muestra "Tienes un borrado pendiente" + botón "Cancelar borrado" (`POST /users/me/cancel-delete`) en lugar del formulario de eliminación. La flag se limpia al cancelar o al confirmar el borrado desde el email (en ese caso el flujo de logout de la app la limpia).
-    - Al intentar eliminar → `DELETE /users/me`. Si responde 409 con `hasActiveBookings` → muestra el mensaje + botón "Borrar reservas" (`DELETE /users/me/bookings`) y luego reintenta el borrado (reutilizando la contraseña ya ingresada).
-    - Si responde 200 (email enviado) → `aviso('Te hemos enviado un correo para confirmar el borrado.')`, setea `pendingAccountDeletion` y muestra el estado pendiente con "Cancelar borrado".
+    - Al intentar eliminar → `DELETE /users/me` con la contraseña. Si responde 200 → `aviso('Te hemos enviado un correo para confirmar el borrado.')`, setea `pendingAccountDeletion` y muestra el estado pendiente con "Cancelar borrado". Si `activeBookings > 0`, el aviso aclara que esas reservas se marcarán como borradas y quedarán a disposición del admin.
   - Todos los fetches protegidos pasan por `handleAuthError` (401 → logout).
 - Nueva página `public/delete-account.html` (espejo de `reset-password.html`):
   - Extrae el token de la URL (`/delete-account/:token`).
@@ -105,7 +106,6 @@ Se usa el helper `aviso()` existente. Los mensajes clave quedan definidos arriba
 | Contraseña actual incorrecta (password o delete) | 401 | `{ error: 'Contraseña actual incorrecta' }` |
 | Campos faltantes (profile/password/delete) | 400 | `{ error: '<detalle>' }` |
 | Clave no permitida en profile (email/role/otra) | 400 | `{ error: 'Campo no permitido: <clave>' }` |
-| Reservas activas al borrar | 409 | `{ error: 'Tienes reservas activas. Debes cancelarlas para poder borrar tu cuenta', hasActiveBookings: true }` |
 | Token de borrado inválido/expirado | 400 | `{ error: 'El enlace es inválido o ha expirado' }` |
 | Falla al enviar email de confirmación | 500 | `{ error: 'No pudimos enviar el correo de confirmación. Reintenta.' }` |
 | Sesión inválida (pwdv desactualizado) | 401 | `{ error: 'Session expired' }` + clearCookie |
@@ -113,9 +113,9 @@ Se usa el helper `aviso()` existente. Los mensajes clave quedan definidos arriba
 ## Testing
 
 - Unitarios nuevos:
-  - `user.controller.test.js`: profile rechaza email/role/claves extra; password con contraseña errónea → 401; correcta → actualiza hash + versiona; delete con reservas activas → 409; delete sin reservas → crea token y envía (mock de email); cancel-delete limpia token; `PUT /users/:id` bloquea email.
+  - `user.controller.test.js`: profile rechaza email/role/claves extra; password con contraseña errónea → 401; correcta → actualiza hash + versiona; delete con reservas activas → genera token, envía email (mock) y responde `activeBookings` sin modificar reservas; cancel-delete limpia token; `PUT /users/:id` bloquea email.
   - `authMiddleware.test.js` (actualizar): mockear `UserStore.findById` y agregar casos de `pwdv` desactualizado → 401 + clearCookie, y usuario inexistente → 401.
-  - Stores (`UserStore`/`BookingStore`): `findByIdFull`, `setDeleteToken`, `findByDeleteToken`, `clearDeleteToken`, `findActiveByUser`, `deleteByUser`.
+  - Stores (`UserStore`/`BookingStore`): `findByIdFull`, `setDeleteToken`, `findByDeleteToken`, `clearDeleteToken`, `findActiveByUser`, `softDeleteActiveByUser` (y que `findAll`/`findByWorkspace`/`findByWorkspaceAll` excluyen las borradas).
 - Regresión: los 36 tests existentes deben seguir pasando (`pnpm test`).
 - Nota: la suite de integración de bookings puede fallar por `EADDRINUSE` preexistente al correr ambas suites juntas (conocido).
 
@@ -125,3 +125,4 @@ Se usa el helper `aviso()` existente. Los mensajes clave quedan definidos arriba
 - Sistema de notificaciones completo (solo se usan `aviso()` y el email de confirmación).
 - Edición de otros campos de usuario (avatar, ubicación, etc.).
 - Gestión de usuarios por admin (modal de gestión, pendiente; solo se protege el email en `PUT /users/:id`).
+- **Gestión de reservas por admin (futuro)**: reasignar reservas soft-deleted a otro instructor/usuario, buscarlas en la DB y borrarlas definitivamente. Esta spec solo deja las reservas marcadas (`deleted: true` + `deletedAt`) para que esa feature las encuentre; no implementa el panel del admin. Tampoco implementa la reasignación de reservas sin borrado de cuenta.
