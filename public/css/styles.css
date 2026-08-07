@@ -1492,3 +1492,54 @@ body::before {
     transform: translateY(-1px);
     box-shadow: 0 6px 20px rgba(239, 68, 68, 0.35);
 }
+
+/* ---------- Estado de espera del modal "Mi cuenta" ---------- */
+
+#miCuentaModal .modal-content {
+    position: relative;
+}
+
+/* Mientras hay una petición en vuelo, el contenido detrás del overlay no recibe eventos */
+#miCuentaModal.account-busy .modal-content > *:not(.account-busy-overlay) {
+    pointer-events: none;
+}
+
+.account-busy-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+    border-radius: var(--radius-lg);
+    z-index: 10;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+}
+
+#miCuentaModal.account-busy .account-busy-overlay {
+    display: flex;
+}
+
+.account-busy-overlay p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid rgba(255, 255, 255, 0.25);
+    border-top-color: var(--brand-blue-light);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

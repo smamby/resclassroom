@@ -1142,6 +1142,11 @@ document.addEventListener('DOMContentLoaded', () => {
               </form>
             </div>
           </div>
+
+          <div id="accountBusyOverlay" class="account-busy-overlay" hidden>
+            <span class="spinner" aria-hidden="true"></span>
+            <p>Enviando…</p>
+          </div>
         </div>`;
       document.body.appendChild(modal);
 
@@ -1155,8 +1160,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
 
-      document.getElementById('miCuentaClose').addEventListener('click', () => modal.remove());
-      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+      // No permitir cerrar el modal mientras una petición está en vuelo
+      document.getElementById('miCuentaClose').addEventListener('click', () => {
+        if (modal.classList.contains('account-busy')) return;
+        modal.remove();
+      });
+      modal.addEventListener('click', (e) => {
+        if (modal.classList.contains('account-busy')) return;
+        if (e.target === modal) modal.remove();
+      });
 
       renderAccountPendingState(modal);
       loadAccountData(modal);
@@ -1195,6 +1207,13 @@ document.addEventListener('DOMContentLoaded', () => {
       modal.querySelector('#miCuentaDeleteForm').hidden = pending;
     }
 
+    // Congela el modal mientras una petición está en vuelo: atenúa el contenido,
+    // bloquea inputs/pestañas/cierre y muestra el spinner con "Enviando…".
+    function setAccountBusy(modal, busy) {
+      modal.classList.toggle('account-busy', busy);
+      modal.querySelector('#accountBusyOverlay').hidden = !busy;
+    }
+
     function wireAccountForms(modal) {
       const profileForm = modal.querySelector('#miCuentaProfileForm');
       profileForm.addEventListener('submit', async (e) => {
@@ -1203,6 +1222,7 @@ document.addEventListener('DOMContentLoaded', () => {
           name: modal.querySelector('#miCuentaName').value,
           surname: modal.querySelector('#miCuentaSurname').value
         };
+        setAccountBusy(modal, true);
         try {
           const res = await fetch('/users/me/profile', {
             method: 'PUT',
@@ -1220,6 +1240,8 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         } catch (err) {
           aviso('Error de conexión');
+        } finally {
+          setAccountBusy(modal, false);
         }
       });
 
@@ -1233,6 +1255,7 @@ document.addEventListener('DOMContentLoaded', () => {
           aviso('Las contraseñas nuevas no coinciden');
           return;
         }
+        setAccountBusy(modal, true);
         try {
           const res = await fetch('/users/me/password', {
             method: 'PUT',
@@ -1250,6 +1273,8 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         } catch (err) {
           aviso('Error de conexión');
+        } finally {
+          setAccountBusy(modal, false);
         }
       });
 
@@ -1257,6 +1282,7 @@ document.addEventListener('DOMContentLoaded', () => {
       deleteForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const password = modal.querySelector('#miCuentaDeletePassword').value;
+        setAccountBusy(modal, true);
         try {
           const res = await fetch('/users/me', {
             method: 'DELETE',
@@ -1279,11 +1305,14 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         } catch (err) {
           aviso('Error de conexión');
+        } finally {
+          setAccountBusy(modal, false);
         }
       });
 
       const cancelBtn = modal.querySelector('#miCuentaCancelDeleteBtn');
       cancelBtn.addEventListener('click', async () => {
+        setAccountBusy(modal, true);
         try {
           const res = await fetch('/users/me/cancel-delete', {
             method: 'POST',
@@ -1301,6 +1330,8 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         } catch (err) {
           aviso('Error de conexión');
+        } finally {
+          setAccountBusy(modal, false);
         }
       });
     }
