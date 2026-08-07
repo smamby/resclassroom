@@ -82,7 +82,7 @@ class AuthController {
       const user = new User(userData);
       const created = await this.store.create(user);
       const roles = Array.isArray(created.role) ? created.role : [created.role];
-      const token = sign({ userId: String(created._id), role: roles, sessionIat: Math.floor(Date.now() / 1000) }, SECRET, { expiresIn: ACCESS_TTL });
+      const token = sign({ userId: String(created._id), role: roles, sessionIat: Math.floor(Date.now() / 1000), pwdv: user.passwordVersion || 0 }, SECRET, { expiresIn: ACCESS_TTL });
       // Send token as HttpOnly cookie
       res.cookie('tokenAuth', token, isDeployed
         ? tokenCookieProduction
@@ -111,7 +111,7 @@ class AuthController {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
       const userRoles = Array.isArray(user.role) ? user.role : [user.role];
-      const token = sign({ userId: String(user._id), role: userRoles, sessionIat: Math.floor(Date.now() / 1000) }, SECRET, { expiresIn: ACCESS_TTL });
+      const token = sign({ userId: String(user._id), role: userRoles, sessionIat: Math.floor(Date.now() / 1000), pwdv: user.passwordVersion || 0 }, SECRET, { expiresIn: ACCESS_TTL });
       res.cookie('tokenAuth', token, isDeployed
         ? tokenCookieProduction
         : tokenCookieDevelopment
