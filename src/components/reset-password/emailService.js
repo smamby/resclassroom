@@ -32,6 +32,25 @@ class EmailService {
 
     return this.transporter.sendMail(mailOptions);
   }
+
+  async sendDeleteAccountEmail(email, deleteUrl) {
+    const mailOptions = {
+      from: this.from,
+      to: email,
+      subject: 'Confirmación de borrado de cuenta - ReservaWorkspaces',
+      html: `
+        <h1>Confirmación de borrado de cuenta</h1>
+        <p>Has solicitado eliminar tu cuenta. Haz clic en el siguiente enlace para confirmar:</p>
+        <p><a href="${deleteUrl}" style="padding: 12px 24px; background: #4A90D9; color: white; text-decoration: none; border-radius: 4px;">Confirmar borrado de cuenta</a></p>
+        <p>O copia y pega este enlace en tu navegador:</p>
+        <p>${deleteUrl}</p>
+        <p style="color: #666; font-size: 0.9em;">Este enlace caduca en 20 minutos.</p>
+        <p style="color: #666; font-size: 0.9em;">Si no solicitaste este cambio, ignora este correo.</p>
+      `
+    };
+
+    return this.transporter.sendMail(mailOptions);
+  }
 }
 
 module.exports = EmailService;
