@@ -1,5 +1,6 @@
 const { verify, sign } = require('jsonwebtoken');
 const ROLES = require('../../common/roles');
+const UserStore = require('../components/user/store');
 
 const SECRET = process.env.JWT_SECRET || 'change-me-please';
 // TTL del access token (se renueva de forma deslizante mientras haya actividad)
@@ -51,7 +52,7 @@ function verifyAndMaybeRefresh(req, res, token) {
   const expiresAtMs = (payload.exp || 0) * 1000;
   if (expiresAtMs - Date.now() < REFRESH_THRESHOLD_MS) {
     const roles = Array.isArray(payload.role) ? payload.role : [payload.role];
-    const newToken = sign({ userId: payload.userId, role: roles, sessionIat }, SECRET, { expiresIn: ACCESS_TTL });
+    const newToken = sign({ userId: payload.userId, role: roles, sessionIat, pwdv: payload.pwdv || 0 }, SECRET, { expiresIn: ACCESS_TTL });
     setTokenCookie(res, newToken);
     payload = verify(newToken, SECRET);
   }
@@ -59,7 +60,20 @@ function verifyAndMaybeRefresh(req, res, token) {
   return payload;
 }
 
-function authenticate(req, res, next) {
+// Valida que el claim pwdv del token coincida con la versión actual de la
+// contraseña del usuario. Si cambió la contraseña, la sesión queda inválida.
+async function checkPasswordVersion(res, payload) {
+  const store = new UserStore();
+  const user = await store.findById(payload.userId);
+  if (!user || (user.passwordVersion || 0) !== (payload.pwdv || 0)) {
+    res.clearCookie('tokenAuth');
+    res.status(401).json({ error: 'Session expired' });
+    return false;
+  }
+  return true;
+}
+
+async function authenticate(req, res, next) {
   try {
     // Skip if user is already set (e.g., by test shim)
     if (req.user) {
@@ -72,6 +86,8 @@ function authenticate(req, res, next) {
     }
     const payload = verifyAndMaybeRefresh(req, res, token);
     if (!payload) return;
+    const versionOk = await checkPasswordVersion(res, payload);
+    if (!versionOk) return;
     const roles = Array.isArray(payload.role) ? payload.role : [payload.role];
     req.user = { id: String(payload.userId), role: roles };
     next();
@@ -80,7 +96,7 @@ function authenticate(req, res, next) {
   }
 }
 
-function authenticateAdmin(req, res, next) {
+async function authenticateAdmin(req, res, next) {
   try {
     // Skip if user is already set (e.g., by test shim)
     if (req.user && req.user.role && Array.isArray(req.user.role) && req.user.role.includes(ROLES.ADMIN)) {
@@ -93,6 +109,8 @@ function authenticateAdmin(req, res, next) {
     }
     const payload = verifyAndMaybeRefresh(req, res, token);
     if (!payload) return;
+    const versionOk = await checkPasswordVersion(res, payload);
+    if (!versionOk) return;
     const roles = Array.isArray(payload.role) ? payload.role : [payload.role];
     if (!roles.includes(ROLES.ADMIN)) {
       return res.status(403).json({ error: 'Admin access required' });
