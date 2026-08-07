@@ -70,6 +70,8 @@ describe('UserController.createUser', () => {
 });
 
 const bcrypt = require('bcryptjs');
+const BookingStore = require('../../bookings/store');
+const EmailService = require('../../reset-password/emailService');
 
 describe('UserController.updateMyProfile', () => {
   let controller;
@@ -142,5 +144,106 @@ describe('UserController.changeMyPassword', () => {
     expect(updateArg.passwordVersion).toBe(3);
     expect(updateArg.passwordHash).toEqual(expect.any(String));
     expect(res.cookie).toHaveBeenCalledWith('tokenAuth', expect.any(String), expect.any(Object));
+  });
+});
+
+describe('UserController.deleteMyAccount', () => {
+  let controller;
+  beforeEach(() => {
+    controller = new UserController();
+    jest.clearAllMocks();
+  });
+
+  test('returns 401 on wrong password', async () => {
+    const hash = bcrypt.hashSync('actual', 10);
+    UserStore.prototype.findByIdFull.mockResolvedValue({ _id: 'u1', email: 'a@b.com', passwordHash: hash });
+    const req = { user: { id: 'u1' }, body: { password: 'incorrecta' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.deleteMyAccount(req, res);
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  test('creates token, sends email and reports active bookings', async () => {
+    const hash = bcrypt.hashSync('actual', 10);
+    UserStore.prototype.findByIdFull.mockResolvedValue({ _id: 'u1', email: 'a@b.com', passwordHash: hash });
+    BookingStore.prototype.findActiveByUser.mockResolvedValue([{ _id: 'b1' }, { _id: 'b2' }]);
+    EmailService.prototype.sendDeleteAccountEmail.mockResolvedValue({ messageId: 'x' });
+    const req = { user: { id: 'u1' }, body: { password: 'actual' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.deleteMyAccount(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    const body = res.json.mock.calls[0][0];
+    expect(body.activeBookings).toBe(2);
+    expect(body.message).toContain('correo');
+    expect(UserStore.prototype.setDeleteToken).toHaveBeenCalled();
+    expect(EmailService.prototype.sendDeleteAccountEmail).toHaveBeenCalledWith('a@b.com', expect.stringContaining('/delete-account/'));
+  });
+
+  test('returns 500 and clears token when email fails', async () => {
+    const hash = bcrypt.hashSync('actual', 10);
+    UserStore.prototype.findByIdFull.mockResolvedValue({ _id: 'u1', email: 'a@b.com', passwordHash: hash });
+    EmailService.prototype.sendDeleteAccountEmail.mockRejectedValue(new Error('smtp down'));
+    const req = { user: { id: 'u1' }, body: { password: 'actual' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.deleteMyAccount(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(UserStore.prototype.clearDeleteToken).toHaveBeenCalled();
+  });
+});
+
+describe('UserController.cancelDeleteAccount', () => {
+  test('clears delete token', async () => {
+    const controller = new UserController();
+    const req = { user: { id: 'u1' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.cancelDeleteAccount(req, res);
+    expect(UserStore.prototype.clearDeleteToken).toHaveBeenCalledWith('u1');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+});
+
+describe('UserController.deleteAccountByToken', () => {
+  let controller;
+  beforeEach(() => {
+    controller = new UserController();
+    jest.clearAllMocks();
+  });
+
+  test('returns 400 for invalid or expired token', async () => {
+    UserStore.prototype.findByDeleteToken.mockResolvedValue(null);
+    const req = { params: { token: 'bad' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), clearCookie: jest.fn() };
+    await controller.deleteAccountByToken(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('soft-deletes bookings, deletes user and clears cookie', async () => {
+    UserStore.prototype.findByDeleteToken.mockResolvedValue({ _id: 'u1' });
+    BookingStore.prototype.softDeleteActiveByUser.mockResolvedValue(2);
+    UserStore.prototype.delete.mockResolvedValue(true);
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), clearCookie: jest.fn() };
+    const req = { params: { token: 'valid-token' } };
+    await controller.deleteAccountByToken(req, res);
+    expect(BookingStore.prototype.softDeleteActiveByUser).toHaveBeenCalledWith('u1');
+    expect(UserStore.prototype.delete).toHaveBeenCalledWith('u1');
+    expect(res.clearCookie).toHaveBeenCalledWith('tokenAuth');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+});
+
+describe('UserController.updateUser email immutability', () => {
+  test('owner update strips email from updates', async () => {
+    const controller = new UserController();
+    UserStore.prototype.update.mockResolvedValue({ _id: 'u1', name: 'Ana', surname: 'Gomez', email: 'old@mail.com' });
+    const req = {
+      user: { id: 'u1', role: [ROLES.VISITOR] },
+      params: { id: 'u1' },
+      body: { name: 'Ana', surname: 'Gomez', email: 'new@mail.com' }
+    };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await controller.updateUser(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    const updateArg = UserStore.prototype.update.mock.calls[0][1];
+    expect(updateArg).not.toHaveProperty('email');
   });
 });

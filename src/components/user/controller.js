@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('./models/User');
 const UserStore = require('./store');
@@ -72,6 +73,70 @@ class UserController {
       res.status(200).json(updated);
     } catch (error) {
       res.status(400).json({ error: error.message });
+    }
+  }
+
+  async deleteMyAccount(req, res) {
+    try {
+      const { password } = req.body || {};
+      if (!password) {
+        return res.status(400).json({ error: 'Contraseña requerida' });
+      }
+      const user = await this.store.findByIdFull(req.user.id);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      if (!bcrypt.compareSync(password, user.passwordHash || '')) {
+        return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+      }
+      const activeBookings = await this.bookingStore.findActiveByUser(String(user._id));
+      const token = crypto.randomBytes(20).toString('hex');
+      const expires = Date.now() + DELETE_TOKEN_TTL_MS;
+      await this.store.setDeleteToken(String(user._id), token, expires);
+      const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+      const deleteUrl = `${baseUrl}/delete-account/${token}`;
+      try {
+        await this.emailService.sendDeleteAccountEmail(user.email, deleteUrl);
+      } catch (emailErr) {
+        // No dejar un token pendiente si el correo no salió
+        await this.store.clearDeleteToken(String(user._id));
+        return res.status(500).json({ error: 'No pudimos enviar el correo de confirmación. Reintenta.' });
+      }
+      res.status(200).json({
+        message: 'Te hemos enviado un correo para confirmar el borrado.',
+        activeBookings: Array.isArray(activeBookings) ? activeBookings.length : 0
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async cancelDeleteAccount(req, res) {
+    try {
+      await this.store.clearDeleteToken(req.user.id);
+      res.status(200).json({ message: 'Borrado cancelado' });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // Público: el token del email es la credencial. Marca reservas como borradas y elimina la cuenta.
+  async deleteAccountByToken(req, res) {
+    try {
+      const { token } = req.params;
+      if (!token) {
+        return res.status(400).json({ error: 'Token requerido' });
+      }
+      const user = await this.store.findByDeleteToken(token);
+      if (!user) {
+        return res.status(400).json({ error: 'El enlace es inválido o ha expirado' });
+      }
+      await this.bookingStore.softDeleteActiveByUser(String(user._id));
+      await this.store.delete(String(user._id));
+      res.clearCookie('tokenAuth');
+      res.status(200).json({ message: 'Cuenta eliminada correctamente' });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
   }
 
@@ -182,6 +247,8 @@ class UserController {
         ...req.body,
         updatedAt: new Date()
       };
+      // El email es el username: no se puede cambiar en ningún caso
+      delete updates.email;
       if (isOwner && !isAdmin) {
         delete updates.role;
         delete updates.passwordHash;
