@@ -140,9 +140,16 @@ public/
 - GET `/users/:id` - Obtener por ID
 - GET `/users/email/:email` - Obtener por email (sanitizado: sin passwordHash/resetPasswordToken)
 - POST `/users` - Crear (solo admin)
-- PUT `/users/:id` - Actualizar
+- PUT `/users/:id` - Actualizar (el email es inmutable; owner no puede cambiar rol ni hash)
 - DELETE `/users/:id` - Eliminar
 - PUT `/users/:id/promote` - Promover a admin (solo admin)
+
+### Mi cuenta (self-service)
+- PUT `/users/me/profile` - Actualizar nombre/apellido propios
+- PUT `/users/me/password` - Cambiar contraseña (valida la actual; invalida otras sesiones vía `pwdv`)
+- DELETE `/users/me` - Solicitar borrado de cuenta (valida password + confirmación por email)
+- POST `/users/me/cancel-delete` - Cancelar un borrado pendiente
+- POST `/delete-account/:token` - Confirmar borrado desde el email (público; el token es la credencial)
 
 ### Auth
 - POST `/auth/login` - Iniciar sesión (JWT)
@@ -188,9 +195,13 @@ public/
 - `handleAuthError` en fetches protegidos: ante 401 → logout + redirect al home
 - POST `/users` restringido a admin
 - GET `/users/email/:email` sanitizado (sin passwordHash ni resetPasswordToken)
+- Claim JWT `pwdv` (passwordVersion): cambiar contraseña invalida otras sesiones (el middleware revalida contra la DB)
+- `findById`/`findAll`/`update` de UserStore sanitizan passwordHash y tokens de reset/borrado (compat driver v6+: `findOneAndUpdate` devuelve el doc directo)
+- Borrado de cuenta con confirmación por email (token 20 min, patrón reset-password); al confirmar se soft-deleten reservas activas (`deleted`/`deletedAt`) y se elimina la cuenta
+- Email inmutable en todo el sistema (username)
 - Validación y sanitización de datos
 - Diseño responsive para interfaz web y móvil
-- Edición de datos de usuario
+- Edición de datos de usuario y "Mi cuenta" (pestañas Datos/Contraseña/Eliminar cuenta)
 - Modal para promover un usuario a un rol superior (pendiente)
 - Modal para crear workspaces (pendiente)
 - Sistema de notificaciones (pendiente de implementar completamente)
@@ -213,9 +224,10 @@ public/
 - POST `/users` restringido a admin; GET `/users/email/:email` sanitizado
 - CRUD completo para espacios de trabajo y usuarios
 - Sistema de reservas completo con detección de conflictos
+- "Mi cuenta" completo: editar perfil, cambiar contraseña (invalida otras sesiones vía `pwdv`) y borrado de cuenta con confirmación por email (soft-delete de reservas activas)
 - Calendario frontend funcional con vista mensual
 - Filtros de espacios y actividades funcionando
-- Tests unitarios: 36 tests, 8 suites (auth, users, workspaces, bookings, middleware, router)
+- Tests unitarios: 80 tests, 11 suites (auth, users, workspaces, bookings, middleware, router, stores, email, menu)
 - Tests de integración: flujos de bookings (pasan individualmente; EADDRINUSE al correr ambas suites juntas — pre-existente)
 
 ## Tests
@@ -248,8 +260,9 @@ Los tests de integración verifican flujos de error y casos exitosos:
 - Los usuarios de test se crean con email '@test.com'
 
 ## Próximos Pasos Sugeridos
-1. Implementar sistema de notificaciones por email
-2. Completar pruebas unitarias y de integración
-3. Mejorar manejo de errores y logging
-4. Optimizar consultas a la base de datos
-5. Implementar panel de administración completo
+1. Panel admin de gestión de reservas: reasignar/buscar/borrar definitivamente reservas soft-deleted
+2. Implementar sistema de notificaciones por email
+3. Completar pruebas unitarias y de integración
+4. Mejorar manejo de errores y logging
+5. Optimizar consultas a la base de datos
+6. Implementar panel de administración completo
