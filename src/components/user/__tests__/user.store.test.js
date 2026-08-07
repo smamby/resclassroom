@@ -61,4 +61,34 @@ describe('UserStore', () => {
       { $set: { deleteAccountToken: null, deleteAccountExpires: null } }
     );
   });
+
+  test('update sanitizes when findOneAndUpdate returns raw document (driver v6+)', async () => {
+    usersCol.findOneAndUpdate.mockResolvedValue({
+      _id: 'abc', name: 'Ana', email: 'a@b.com', passwordHash: 'h',
+      resetPasswordToken: 'r', resetPasswordExpires: 1,
+      deleteAccountToken: 'd', deleteAccountExpires: 2, passwordVersion: 1
+    });
+    const result = await new UserStore().update('abc', { name: 'Ana' });
+    expect(result.passwordHash).toBeUndefined();
+    expect(result.resetPasswordToken).toBeUndefined();
+    expect(result.deleteAccountToken).toBeUndefined();
+    expect(result.passwordVersion).toBe(1);
+    expect(result.name).toBe('Ana');
+  });
+
+  test('update sanitizes when findOneAndUpdate returns { value } metadata (older driver)', async () => {
+    usersCol.findOneAndUpdate.mockResolvedValue({
+      value: {
+        _id: 'abc', name: 'Ana', email: 'a@b.com', passwordHash: 'h',
+        resetPasswordToken: 'r', resetPasswordExpires: 1,
+        deleteAccountToken: 'd', deleteAccountExpires: 2, passwordVersion: 2
+      },
+      ok: 1
+    });
+    const result = await new UserStore().update('abc', { name: 'Ana' });
+    expect(result.passwordHash).toBeUndefined();
+    expect(result.resetPasswordToken).toBeUndefined();
+    expect(result.deleteAccountToken).toBeUndefined();
+    expect(result.passwordVersion).toBe(2);
+  });
 });

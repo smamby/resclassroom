@@ -60,8 +60,11 @@ class UserStore {
       { $set: updates },
       { returnDocument: 'after' }
     );
-    if (result && result.value) {
-      const { passwordHash, resetPasswordToken, resetPasswordExpires, deleteAccountToken, deleteAccountExpires, _id, ...rest } = result.value;
+    // Driver v6+: findOneAndUpdate devuelve el documento directamente;
+    // en versiones anteriores venía envuelto en { value }. Sanitizar ambos.
+    const doc = (result && result.value) ? result.value : result;
+    if (doc) {
+      const { passwordHash, resetPasswordToken, resetPasswordExpires, deleteAccountToken, deleteAccountExpires, _id, ...rest } = doc;
       return { _id, ...rest };
     }
     return result;
