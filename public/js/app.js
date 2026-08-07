@@ -922,6 +922,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionStorage.removeItem('username');
         sessionStorage.removeItem('roles');
         sessionStorage.removeItem('userId');
+        sessionStorage.removeItem('pendingAccountDeletion');
         updateFloatingButtonsVisibility();
         // Clear UI cards and details view
         const dayActivitiesEl = document.getElementById('dayActivities');
@@ -980,9 +981,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // El menú delega la accion de logout al flujo existente de sesion
+    // El menú delega la accion de logout al flujo existente de sesion y la de
+    // "Mi cuenta" al modal de perfil
     if (window.ResClassroomMenu) {
-      window.ResClassroomMenu.init({ logout });
+      window.ResClassroomMenu.init({ logout, 'mi-cuenta': openMiCuentaModal });
     }
 
     // Registrar nuevo usuario: modal estilizado coherente
@@ -1068,6 +1070,240 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
     ensureRegisterButton();
+
+    // ---------- Mi cuenta (modal con pestañas) ----------
+
+    function openMiCuentaModal() {
+      const existing = document.getElementById('miCuentaModal');
+      if (existing) existing.remove();
+      const modal = document.createElement('div');
+      modal.id = 'miCuentaModal';
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <div class="modal-content">
+          <span class="modal-close" id="miCuentaClose">&times;</span>
+          <h2>Mi cuenta</h2>
+          <div class="account-tabs">
+            <button type="button" class="account-tab active" data-tab="datos">Datos</button>
+            <button type="button" class="account-tab" data-tab="password">Contraseña</button>
+            <button type="button" class="account-tab" data-tab="eliminar">Eliminar cuenta</button>
+          </div>
+
+          <div id="accountPanelDatos" class="account-tab-panel">
+            <div class="account-info">
+              <div><span class="account-info-label">Email</span><span id="miCuentaEmail">—</span></div>
+              <div><span class="account-info-label">Rol</span><span id="miCuentaRole">—</span></div>
+              <div><span class="account-info-label">Miembro desde</span><span id="miCuentaSince">—</span></div>
+            </div>
+            <form id="miCuentaProfileForm" class="form-group" style="display:flex;flex-direction:column;gap:1rem;margin-top:1rem;">
+              <div class="form-group">
+                <label>Nombre</label>
+                <input id="miCuentaName" required />
+              </div>
+              <div class="form-group">
+                <label>Apellido</label>
+                <input id="miCuentaSurname" required />
+              </div>
+              <button type="submit" class="btn-primary">Guardar cambios</button>
+            </form>
+          </div>
+
+          <div id="accountPanelPassword" class="account-tab-panel" hidden>
+            <form id="miCuentaPasswordForm" class="form-group" style="display:flex;flex-direction:column;gap:1rem;">
+              <div class="form-group">
+                <label>Contraseña actual</label>
+                <input id="miCuentaCurrentPwd" type="password" required />
+              </div>
+              <div class="form-group">
+                <label>Nueva contraseña</label>
+                <input id="miCuentaNewPwd" type="password" required />
+              </div>
+              <div class="form-group">
+                <label>Repetir nueva contraseña</label>
+                <input id="miCuentaRepeatPwd" type="password" required />
+              </div>
+              <button type="submit" class="btn-primary">Cambiar contraseña</button>
+            </form>
+          </div>
+
+          <div id="accountPanelEliminar" class="account-tab-panel" hidden>
+            <div class="danger-zone">
+              <p>Borrar tu cuenta es definitivo. Tus reservas activas se marcarán como borradas y quedarán a disposición del admin.</p>
+              <div id="miCuentaPendingDelete" hidden>
+                <p>Tienes un borrado pendiente. Revisa tu email para confirmarlo, o cancela aquí.</p>
+                <button type="button" id="miCuentaCancelDeleteBtn" class="btn-secondary">Cancelar borrado</button>
+              </div>
+              <form id="miCuentaDeleteForm" style="display:flex;flex-direction:column;gap:1rem;margin-top:1rem;">
+                <div class="form-group">
+                  <label>Contraseña</label>
+                  <input id="miCuentaDeletePassword" type="password" required />
+                </div>
+                <button type="submit" class="btn-danger">Eliminar mi cuenta</button>
+              </form>
+            </div>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+
+      // Pestañas
+      modal.querySelectorAll('.account-tab').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          modal.querySelectorAll('.account-tab').forEach((b) => b.classList.toggle('active', b === btn));
+          const panelId = 'accountPanel' +
+            (btn.dataset.tab === 'password' ? 'Password' : btn.dataset.tab === 'eliminar' ? 'Eliminar' : 'Datos');
+          modal.querySelectorAll('.account-tab-panel').forEach((p) => { p.hidden = p.id !== panelId; });
+        });
+      });
+
+      document.getElementById('miCuentaClose').addEventListener('click', () => modal.remove());
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+      renderAccountPendingState(modal);
+      loadAccountData(modal);
+      wireAccountForms(modal);
+    }
+
+    async function loadAccountData(modal) {
+      try {
+        const res = await fetch('/auth/me', { credentials: 'include' });
+        if (await handleAuthError(res)) return;
+        const data = await res.json();
+        if (!res.ok) return;
+        modal.querySelector('#miCuentaEmail').textContent = data.email || '—';
+        modal.querySelector('#miCuentaRole').textContent = Array.isArray(data.role) ? data.role.join(', ') : (data.role || '—');
+        const createdAt = data.createdAt ? new Date(data.createdAt) : null;
+        modal.querySelector('#miCuentaSince').textContent = createdAt ? createdAt.toLocaleDateString() : '—';
+        modal.querySelector('#miCuentaName').value = data.name || '';
+        modal.querySelector('#miCuentaSurname').value = data.surname || '';
+      } catch (e) {
+        console.error('Error cargando datos de cuenta', e);
+      }
+    }
+
+    // 401 de "contraseña incorrecta" no debe desloguear: solo los errores de sesión
+    async function handleAccountFormError(res, data) {
+      if (res && res.status === 401 && data && data.error === 'Contraseña actual incorrecta') {
+        aviso('Contraseña actual incorrecta');
+        return true;
+      }
+      return await handleAuthError(res);
+    }
+
+    function renderAccountPendingState(modal) {
+      const pending = sessionStorage.getItem('pendingAccountDeletion') === '1';
+      modal.querySelector('#miCuentaPendingDelete').hidden = !pending;
+      modal.querySelector('#miCuentaDeleteForm').hidden = pending;
+    }
+
+    function wireAccountForms(modal) {
+      const profileForm = modal.querySelector('#miCuentaProfileForm');
+      profileForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+          name: modal.querySelector('#miCuentaName').value,
+          surname: modal.querySelector('#miCuentaSurname').value
+        };
+        try {
+          const res = await fetch('/users/me/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json().catch(() => ({}));
+          if (await handleAccountFormError(res, data)) return;
+          if (res.ok) {
+            sessionStorage.setItem('username', data.name || payload.name);
+            aviso('Datos actualizados');
+          } else {
+            aviso('Error: ' + (data.error || 'No se pudieron guardar los datos'));
+          }
+        } catch (err) {
+          aviso('Error de conexión');
+        }
+      });
+
+      const pwdForm = modal.querySelector('#miCuentaPasswordForm');
+      pwdForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const current = modal.querySelector('#miCuentaCurrentPwd').value;
+        const next = modal.querySelector('#miCuentaNewPwd').value;
+        const repeat = modal.querySelector('#miCuentaRepeatPwd').value;
+        if (next !== repeat) {
+          aviso('Las contraseñas nuevas no coinciden');
+          return;
+        }
+        try {
+          const res = await fetch('/users/me/password', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ currentPassword: current, newPassword: next })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (await handleAccountFormError(res, data)) return;
+          if (res.ok) {
+            aviso('Contraseña actualizada. Otras sesiones fueron cerradas.');
+            pwdForm.reset();
+          } else {
+            aviso('Error: ' + (data.error || 'No se pudo cambiar la contraseña'));
+          }
+        } catch (err) {
+          aviso('Error de conexión');
+        }
+      });
+
+      const deleteForm = modal.querySelector('#miCuentaDeleteForm');
+      deleteForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const password = modal.querySelector('#miCuentaDeletePassword').value;
+        try {
+          const res = await fetch('/users/me', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ password })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (await handleAccountFormError(res, data)) return;
+          if (res.ok) {
+            sessionStorage.setItem('pendingAccountDeletion', '1');
+            const extra = Number(data.activeBookings) > 0
+              ? ' Tus ' + data.activeBookings + ' reservas activas se marcarán como borradas y quedarán a disposición del admin.'
+              : '';
+            aviso('Te hemos enviado un correo para confirmar el borrado.' + extra);
+            renderAccountPendingState(modal);
+            deleteForm.reset();
+          } else {
+            aviso('Error: ' + (data.error || 'No se pudo solicitar el borrado'));
+          }
+        } catch (err) {
+          aviso('Error de conexión');
+        }
+      });
+
+      const cancelBtn = modal.querySelector('#miCuentaCancelDeleteBtn');
+      cancelBtn.addEventListener('click', async () => {
+        try {
+          const res = await fetch('/users/me/cancel-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+          });
+          const data = await res.json().catch(() => ({}));
+          if (await handleAccountFormError(res, data)) return;
+          if (res.ok) {
+            sessionStorage.removeItem('pendingAccountDeletion');
+            aviso('Borrado cancelado');
+            renderAccountPendingState(modal);
+          } else {
+            aviso('Error: ' + (data.error || 'No se pudo cancelar el borrado'));
+          }
+        } catch (err) {
+          aviso('Error de conexión');
+        }
+      });
+    }
 
     // Watchdog de sesión: verifica periódicamente si la sesión sigue viva
     // y ejecuta logout automáticamente al expirar (tope absoluto de 40 min).
