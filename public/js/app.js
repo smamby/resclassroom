@@ -80,7 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
             actividad: b.actividad,
             activity: b.actividad,
             slots: slots,
-            createdByUserId: b.userId || (b.createdBy && b.createdBy.userId) || null
+            createdByUserId: b.userId || (b.createdBy && b.createdBy.userId) || null,
+            status: b.status || 'confirmed',
+            isPending: b.status === 'pending',
+            courseId: b.courseId || null
           };
         });
       } catch (e) {
@@ -103,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
           localStorage.setItem('loggedIn', 'true');
           renderAuthUI(true, uname);
           updateFloatingButtonsVisibility();
+          if (window.ResClassroomVoting) window.ResClassroomVoting.updateVoteBadge();
           return;
         }
         // Token vencido o inválido: sesión expirada, se ejecuta logout
@@ -215,7 +219,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Mark activities for this date
             const activities = getFilteredActivities(dateStr, dow);
             if (activities.length > 0) {
-                const dots = activities.slice(0, 4).map(act => `<span class="activity-dot" style="background: ${act.color}"></span>`).join('');
+                // Los soft bookings de propuestas (pending) se dibujan punteados.
+                const dots = activities.slice(0, 4).map(act => {
+                    const style = act.isPending
+                        ? `background: transparent; border: 2px dashed ${act.color};`
+                        : `background: ${act.color};`;
+                    return `<span class="activity-dot" style="${style}"></span>`;
+                }).join('');
                 dayEl.innerHTML += `<div class="day-dots">${dots}</div>`;
             }
             // Highlight today (local)
@@ -259,7 +269,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return filtered.map(item => ({
             ...item,
             activity: item.actividad,
-            color: item.color || (item.slot && item.slot.color) || '#999'
+            color: item.color || (item.slot && item.slot.color) || '#999',
+            isPending: item.isPending || false,
+            status: item.status || 'confirmed'
         }));
     }
 
@@ -285,6 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .map(act => {
               // Determine edit permission for this booking turn
               const canEdit = (function() {
+                if (act.isPending) return false;
                 const rolesJson = sessionStorage.getItem('roles');
                 const roles = rolesJson ? JSON.parse(rolesJson) : [ROLES.VISITOR];
                 const uid = String(sessionStorage.getItem('userId') || '');
@@ -299,7 +312,8 @@ document.addEventListener('DOMContentLoaded', () => {
                   ? ` <button class=\"icon-btn edit\" onclick=\"handleEditClick('${act.id}')\" aria-label=\"Editar\" title=\"Editar\" style=\"border:0;background:transparent;padding:0;margin-left:6px;cursor:pointer;display:inline-flex;align-items:center;\">${editIcon}</button><button class=\"icon-btn delete\" onclick=\"handleDeleteClick('${act.id}')\" aria-label=\"Eliminar\" title=\"Eliminar\" style=\"border:0;background:transparent;padding:0;margin-left:6px;cursor:pointer;display:inline-flex;align-items:center;\">${deleteIcon}</button>`
                   : '';
               return `
-                  <div class=\"activity-card\" data-id=\"${act.id}\" data-created-by-user-id=\"${act.createdByUserId ?? ''}\" style=\"border-left-color: ${act.color}\">
+                  <div class=\"activity-card ${act.isPending ? 'activity-card-pending' : ''}\" data-id=\"${act.id}\" data-created-by-user-id=\"${act.createdByUserId ?? ''}\" style=\"border-left-color: ${act.color}\">
+                      ${act.isPending ? '<span class=\"pending-tag\">Propuesta en votación</span>' : ''}
                       <div class=\"activity-header\">
                         ${act.activity}
                         <div class=\"card-actions\" style=\"margin-left:0;\">
@@ -501,22 +515,12 @@ document.addEventListener('DOMContentLoaded', () => {
         select.addEventListener('change', renderCalendar);
     });
 
+    // El FAB "+" ahora abre el modal de curso (los horarios regulares se generan
+    // desde los cursos; las reservas sueltas se gestionan por el panel).
     btnNewReservation.addEventListener('click', () => {
-        reservationModal.classList.remove('hidden');
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('resStartDate').value = today;
-        document.getElementById('resEndDate').value = today;
-
-        // Ensure a color input exists for choosing reservation color
-        let colorInput = document.getElementById('resColor');
-        if (!colorInput) {
-          colorInput = document.createElement('input');
-          colorInput.id = 'resColor';
-          colorInput.type = 'color';
-          colorInput.value = '#ff0000'; // default rojo
-          // Try to append near the date/time controls if possible
-          reservationForm.appendChild(colorInput);
-        }
+      if (window.ResClassroomCourses) {
+        window.ResClassroomCourses.openCourseModal(null);
+      }
     });
 
     btnNewWorkspace.addEventListener('click', async () => {
@@ -984,7 +988,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // El menú delega la accion de logout al flujo existente de sesion y la de
     // "Mi cuenta" al modal de perfil
     if (window.ResClassroomMenu) {
-      window.ResClassroomMenu.init({ logout, 'mi-cuenta': openMiCuentaModal });
+      window.ResClassroomMenu.init({
+        logout,
+        'mi-cuenta': openMiCuentaModal,
+        'cursos': () => window.ResClassroomCourses && window.ResClassroomCourses.openCursosView(),
+        'votar': () => window.ResClassroomVoting && window.ResClassroomVoting.openVotarView()
+      });
     }
 
     // Registrar nuevo usuario: modal estilizado coherente
@@ -1341,6 +1350,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(() => {
       if (localStorage.getItem('loggedIn') === 'true') {
         checkLoginStatus();
+        if (window.ResClassroomVoting) window.ResClassroomVoting.updateVoteBadge();
       }
     }, 60 * 1000);
 
@@ -1412,4 +1422,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
   }
+
+    // Exposición de helpers del closure para los módulos de cursos y votación:
+    // courses.js usa root.aviso/confirmar y root.ResClassroomRefresh; voting.js
+    // usa root.ResClassroomAuth.handleAuthError.
+    window.aviso = aviso;
+    window.confirmar = confirmar;
+    window.ResClassroomAuth = { handleAuthError };
+    window.ResClassroomRefresh = function () {
+      refreshView();
+    };
 });
