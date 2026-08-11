@@ -115,6 +115,17 @@ class UserStore {
       { $set: { deleteAccountToken: null, deleteAccountExpires: null } }
     );
   }
+
+  // Usuarios con un rol dado. `find({ role })` matchea elementos del array de roles.
+  async findByRole(role) {
+    const db = getDb();
+    const collection = db.collection('users');
+    const users = await collection.find({ role }).toArray();
+    return users.map(u => {
+      const { passwordHash, resetPasswordToken, resetPasswordExpires, deleteAccountToken, deleteAccountExpires, _id, ...rest } = u;
+      return { _id, ...rest };
+    });
+  }
 }
 
 module.exports = UserStore;

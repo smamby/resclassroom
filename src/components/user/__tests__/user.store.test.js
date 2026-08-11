@@ -91,4 +91,21 @@ describe('UserStore', () => {
     expect(result.deleteAccountToken).toBeUndefined();
     expect(result.passwordVersion).toBe(2);
   });
+
+  test('findByRole filtra por rol y sanitiza passwordHash', async () => {
+    let captured;
+    const dbModule = require('../../../db');
+    const col = {
+      find: (filter) => { captured = filter; return { toArray: async () => [
+        { _id: 's1', name: 'Ana', email: 'ana@mail.com', role: ['instructor', 'subco'], passwordHash: 'x' },
+        { _id: 's2', name: 'Leo', email: 'leo@mail.com', role: ['subco'], passwordHash: 'y' }
+      ] }; }
+    };
+    dbModule.getDb.mockReturnValue({ collection: () => col });
+    const store = new UserStore();
+    const users = await store.findByRole('subco');
+    expect(captured).toEqual({ role: 'subco' });
+    expect(users).toHaveLength(2);
+    expect(users[0].passwordHash).toBeUndefined();
+  });
 });
