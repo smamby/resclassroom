@@ -53,4 +53,12 @@ describe('Courses network', () => {
       .send({ title: 'Escalada' });
     expect(res.status).toBe(201);
   });
+
+  // Un request anónimo a /pending-count devuelve 403 porque pendingCount rechaza a
+  // quien no tiene rol SUBCO (rolesOf(null) = []). Si Express rutease mal y cayera en
+  // /:id, getCourseById('pending-count') devolvería 404 — este test fija el orden de rutas.
+  test('GET /courses/pending-count no es capturada por /:id', async () => {
+    const res = await request(app).get('/courses/pending-count');
+    expect(res.status).toBe(403);
+  });
 });
