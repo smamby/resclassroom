@@ -237,6 +237,7 @@ public/
 - Frontend cursos: FAB "+" abre el modal de curso (nueva reserva suelta sin acceso por UI — por diseño), overlay "Cursos" con tabs (borradores/votación/publicados/histórico), overlay "Votar" con voto/re-voto, badge de votación pendiente en el menú, `window.aviso`/`window.confirmar`/`window.ResClassroomAuth`/`window.ResClassroomRefresh` expuestos por app.js
 - Tests: 145 tests, 22 suites (auth, users, workspaces, bookings, courses, middleware, router, stores, email, menu)
 - Tests de integración: flujos de bookings y flujos de cursos (borrador, envío, votación, aprobación, rechazo) — corren juntos con `pnpm.cmd jest --forceExit`
+- Prueba E2E Playwright del flujo completo de cursos en `test/e2e/cursos/` (seed + script + cleanup) verificada en navegador: 18/18 checks PASS
 
 ## Tests
 
@@ -268,6 +269,12 @@ Los tests de integración verifican flujos de error y casos exitosos:
 - La votación requiere el roster COMPLETO de subco actuales de `findByRole` (la DB real tiene 2 pre-existentes: `jupe@mail.com`, `s.mamby@gmail.com`); se seedean 4 subco de test y se limpia por `_id` exacto, sin tocar usuarios pre-existentes
 - Emails desactivados en tests (TEST_AUTH=1)
 
+### Test E2E (Cursos)
+- **Ubicación**: `test/e2e/cursos/` (README.md, seed.js, e2e_cursos.py, cleanup.js)
+- Verifica en navegador: login instructor → FAB crea borrador → envío a votación → badge + voto del subco → dot punteado y tag "Propuesta en votación" en el calendario → visitante no ve la propuesta → deep-link `?votar=<id>`
+- Ejecución: `node test/e2e/cursos/seed.js` → `python .agents/skills/webapp-testing/scripts/with_server.py --server "node src/server.js" --port 3000 --timeout 60 -- python test/e2e/cursos/e2e_cursos.py` → `node test/e2e/cursos/cleanup.js`
+- El cleanup borra solo los `_id` de `state.json` (nunca usuarios pre-existentes); el seed es idempotente
+
 ### Limpieza
 - Los bookings/cursos/workspaces de test se limpian por `_id` exacto al final de cada ejecución
 - Los usuarios de test se crean con email '@test.com'
@@ -276,8 +283,7 @@ Los tests de integración verifican flujos de error y casos exitosos:
 1. Restaurar una vía de creación de reservas sueltas en la UI (el FAB ahora crea cursos)
 2. Panel admin de gestión de reservas: reasignar/buscar/borrar definitivamente reservas soft-deleted
 3. Implementar sistema de notificaciones por email (cursos ya envían avisos de votación/aprobación/rechazo)
-4. Pruebas E2E manuales del flujo completo de cursos en navegador
-5. Completar pruebas unitarias y de integración
-6. Mejorar manejo de errores y logging
-7. Optimizar consultas a la base de datos
-8. Implementar panel de administración completo
+4. Completar pruebas unitarias y de integración
+5. Mejorar manejo de errores y logging
+6. Optimizar consultas a la base de datos
+7. Implementar panel de administración completo
