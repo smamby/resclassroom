@@ -125,4 +125,47 @@ describe('BookingStore', () => {
     expect(capturedFilter.userId).toBe('u1');
     expect(capturedUpdate.$set.deleted).toBe(true);
   });
+
+  test('Booking incluye courseId (soft booking de un curso)', () => {
+    const Booking = require('../../bookings/models/Booking');
+    const b = new Booking({ workspaceId: 'w1', courseId: 'c1' });
+    expect(b.courseId).toBe('c1');
+    expect(b.status).toBe('confirmed'); // default sin cambios
+  });
+
+  test('confirmPendingByCourse flipea pending a confirmed', async () => {
+    let capturedFilter;
+    let capturedUpdate;
+    bookingsCol.updateMany = async (filter, update) => {
+      capturedFilter = filter;
+      capturedUpdate = update;
+      return { modifiedCount: 2 };
+    };
+    const BookingStore = require('../../bookings/store');
+    const store = new BookingStore();
+    const count = await store.confirmPendingByCourse('c1');
+    expect(count).toBe(2);
+    expect(capturedFilter).toEqual({ courseId: 'c1', status: 'pending', deleted: { $ne: true } });
+    expect(capturedUpdate.$set.status).toBe('confirmed');
+  });
+
+  test('softDeleteByCourse marca todas las reservas del curso', async () => {
+    let captured;
+    bookingsCol.updateMany = async (filter, update) => { captured = { filter, update }; return { modifiedCount: 3 }; };
+    const BookingStore = require('../../bookings/store');
+    const store = new BookingStore();
+    await store.softDeleteByCourse('c1');
+    expect(captured.filter).toEqual({ courseId: 'c1', deleted: { $ne: true } });
+    expect(captured.update.$set.deleted).toBe(true);
+  });
+
+  test('deletePendingByCourse borra físicamente los soft bookings', async () => {
+    let captured;
+    bookingsCol.deleteMany = async (filter) => { captured = filter; return { deletedCount: 2 }; };
+    const BookingStore = require('../../bookings/store');
+    const store = new BookingStore();
+    const count = await store.deletePendingByCourse('c1');
+    expect(count).toBe(2);
+    expect(captured).toEqual({ courseId: 'c1', status: 'pending' });
+  });
 });

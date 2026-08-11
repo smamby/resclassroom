@@ -128,6 +128,43 @@ class BookingStore {
     );
     return result.modifiedCount || 0;
   }
+
+  // Soft bookings de un curso (status pending).
+  async findPendingByCourse(courseId) {
+    const db = getDb();
+    const collection = db.collection('bookings');
+    return await collection.find({ courseId, status: 'pending', deleted: { $ne: true } }).toArray();
+  }
+
+  // Confirma los soft bookings de un curso al aprobarse (flip pending → confirmed).
+  async confirmPendingByCourse(courseId) {
+    const db = getDb();
+    const collection = db.collection('bookings');
+    const result = await collection.updateMany(
+      { courseId, status: 'pending', deleted: { $ne: true } },
+      { $set: { status: 'confirmed', updatedAt: new Date() } }
+    );
+    return result.modifiedCount || 0;
+  }
+
+  // Elimina físicamente los soft bookings (edición durante votación o borrado de borrador).
+  async deletePendingByCourse(courseId) {
+    const db = getDb();
+    const collection = db.collection('bookings');
+    const result = await collection.deleteMany({ courseId, status: 'pending' });
+    return result.deletedCount || 0;
+  }
+
+  // Soft-deletea todas las reservas de un curso (rechazo, retiro, cancelación o re-grilla).
+  async softDeleteByCourse(courseId) {
+    const db = getDb();
+    const collection = db.collection('bookings');
+    const result = await collection.updateMany(
+      { courseId, deleted: { $ne: true } },
+      { $set: { deleted: true, deletedAt: new Date() } }
+    );
+    return result.modifiedCount || 0;
+  }
 }
 
 module.exports = BookingStore;
