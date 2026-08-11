@@ -111,6 +111,12 @@ class BookingController {
       const all = await this.store.findAll();
       let results = all;
 
+      // Visitantes (sin sesión) no ven los soft bookings de propuestas en votación;
+      // los logueados (instructor/subco/admin) sí, para renderizarlos punteados.
+      if (!req.user) {
+        results = results.filter(b => b.status !== 'pending');
+      }
+
       console.log('results get all bookings', results);
 
       if (req.query.workspaceId) {
@@ -139,6 +145,10 @@ class BookingController {
   async getBookingById(req, res) {
     try {
       const booking = await this.store.findById(req.params.id);
+      // Un soft booking (propuesta en votación) no existe para un visitante sin sesión
+      if (booking && booking.status === 'pending' && !req.user) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
       if (booking) {
         res.status(200).json(booking);
       } else {
@@ -151,7 +161,11 @@ class BookingController {
 
   async getBookingsByWorkspace(req, res) {
     try {
-      const results = await this.store.findByWorkspace(req.params.workspaceId);
+      let results = await this.store.findByWorkspace(req.params.workspaceId);
+      // Visitantes sin sesión no ven los soft bookings de propuestas en votación
+      if (!req.user) {
+        results = results.filter(b => b.status !== 'pending');
+      }
       res.status(200).json(results);
     } catch (error) {
       res.status(400).json({ error: error.message });
