@@ -7,3 +7,4 @@ exported_data
 .env
 .gitignore
 .worktrees
+__pycache__/
