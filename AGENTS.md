@@ -227,14 +227,22 @@ public/
 - "Mi cuenta" completo: editar perfil, cambiar contraseña (invalida otras sesiones vía `pwdv`) y borrado de cuenta con confirmación por email (soft-delete de reservas activas)
 - Calendario frontend funcional con vista mensual
 - Filtros de espacios y actividades funcionando
-- Tests unitarios: 80 tests, 11 suites (auth, users, workspaces, bookings, middleware, router, stores, email, menu)
-- Tests de integración: flujos de bookings (pasan individualmente; EADDRINUSE al correr ambas suites juntas — pre-existente)
+- **Sistema de Cursos** completo: ciclo de vida borrador → votación SUBCO → publicación con reservas automáticas
+  - Componente `src/components/courses/` (network → controller → store → model + lógica pura de votación + email service)
+  - Los bloques de un curso con workspace se materializan como bookings con `status: 'pending'` y `courseId` (bloquean colisiones); al aprobar se hace flip a `confirmed`, al rechazar/retirar/cancelar se liberan (soft-delete)
+  - Borrador solo exige `title`; votación SUBCO: umbral 75% de positivos sobre positivos+negativos, abstenciones no cuentan; cierre lazy a las 48hs o si votan todos; deadline configurable
+  - Transiciones lazy en `_resolveState`: `propuesto → en_votacion → aprobado → publicado → en_curso → finalizado` + `rechazado/retirado/cancelado`
+  - Los visitantes NO ven los soft bookings `pending` (filtro en controller de bookings); los logueados los ven punteados en el calendario
+  - Emails a subcos al enviar (deep-link `?votar=<id>`), aviso de aprobación y de rechazo
+- Frontend cursos: FAB "+" abre el modal de curso (nueva reserva suelta sin acceso por UI — por diseño), overlay "Cursos" con tabs (borradores/votación/publicados/histórico), overlay "Votar" con voto/re-voto, badge de votación pendiente en el menú, `window.aviso`/`window.confirmar`/`window.ResClassroomAuth`/`window.ResClassroomRefresh` expuestos por app.js
+- Tests: 145 tests, 22 suites (auth, users, workspaces, bookings, courses, middleware, router, stores, email, menu)
+- Tests de integración: flujos de bookings y flujos de cursos (borrador, envío, votación, aprobación, rechazo) — corren juntos con `pnpm.cmd jest --forceExit`
 
 ## Tests
 
 ### Suite de Tests
-- **Ubicación**: `test/integration/bookings.integration.test.js` y componentes `__tests__/`
-- **Ejecución**: `pnpm test`
+- **Ubicación**: `test/integration/bookings.integration.test.js`, `test/integration/courses.integration.test.js` y componentes `__tests__/`
+- **Ejecución**: `pnpm test` (en PowerShell usar `pnpm.cmd jest --forceExit`)
 
 ### Tests de Integración (Bookings)
 Los tests de integración verifican flujos de error y casos exitosos:
@@ -254,15 +262,22 @@ Los tests de integración verifican flujos de error y casos exitosos:
 - Se usa header `X-User-Id` con el ObjectId string para autenticación en tests
 - Los bookings usan workspaceId como string del ObjectId de MongoDB
 
+### Tests de Integración (Cursos)
+- `courses.integration.test.js` verifica: borrador + envío a votación (crea soft bookings), aprobación al votar todos los subco (flip a confirmed), rechazo (libera soft bookings)
+- Cada curso usa su propio workspace para evitar 409 por colisión de soft bookings
+- La votación requiere el roster COMPLETO de subco actuales de `findByRole` (la DB real tiene 2 pre-existentes: `jupe@mail.com`, `s.mamby@gmail.com`); se seedean 4 subco de test y se limpia por `_id` exacto, sin tocar usuarios pre-existentes
+- Emails desactivados en tests (TEST_AUTH=1)
+
 ### Limpieza
-- Cada ejecución crea ~2 bookings de test
-- Los workspaces se recrean en cada ejecución (deleteMany + insert)
+- Los bookings/cursos/workspaces de test se limpian por `_id` exacto al final de cada ejecución
 - Los usuarios de test se crean con email '@test.com'
 
 ## Próximos Pasos Sugeridos
-1. Panel admin de gestión de reservas: reasignar/buscar/borrar definitivamente reservas soft-deleted
-2. Implementar sistema de notificaciones por email
-3. Completar pruebas unitarias y de integración
-4. Mejorar manejo de errores y logging
-5. Optimizar consultas a la base de datos
-6. Implementar panel de administración completo
+1. Restaurar una vía de creación de reservas sueltas en la UI (el FAB ahora crea cursos)
+2. Panel admin de gestión de reservas: reasignar/buscar/borrar definitivamente reservas soft-deleted
+3. Implementar sistema de notificaciones por email (cursos ya envían avisos de votación/aprobación/rechazo)
+4. Pruebas E2E manuales del flujo completo de cursos en navegador
+5. Completar pruebas unitarias y de integración
+6. Mejorar manejo de errores y logging
+7. Optimizar consultas a la base de datos
+8. Implementar panel de administración completo
