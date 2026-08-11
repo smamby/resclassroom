@@ -100,6 +100,14 @@ describe('BookingStore', () => {
     expect(captured).toEqual({ deleted: { $ne: true } });
   });
 
+  test('findPendingByCourse filtra por courseId, status pending y no borrados', async () => {
+    let captured;
+    bookingsCol.find = (filter) => { captured = filter; return { toArray: async () => [] }; };
+    const store = new BookingStore();
+    await store.findPendingByCourse('c1');
+    expect(captured).toEqual({ courseId: 'c1', status: 'pending', deleted: { $ne: true } });
+  });
+
   test('findActiveByUser builds active/future filter', async () => {
     let captured;
     bookingsCol.find = (filter) => { captured = filter; return { toArray: async () => [] }; };
@@ -131,6 +139,8 @@ describe('BookingStore', () => {
     const b = new Booking({ workspaceId: 'w1', courseId: 'c1' });
     expect(b.courseId).toBe('c1');
     expect(b.status).toBe('confirmed'); // default sin cambios
+    const sinCurso = new Booking({ workspaceId: 'w1' });
+    expect(sinCurso.courseId).toBeNull();
   });
 
   test('confirmPendingByCourse flipea pending a confirmed', async () => {
@@ -147,6 +157,7 @@ describe('BookingStore', () => {
     expect(count).toBe(2);
     expect(capturedFilter).toEqual({ courseId: 'c1', status: 'pending', deleted: { $ne: true } });
     expect(capturedUpdate.$set.status).toBe('confirmed');
+    expect(capturedUpdate.$set.updatedAt).toBeInstanceOf(Date);
   });
 
   test('softDeleteByCourse marca todas las reservas del curso', async () => {
@@ -157,6 +168,7 @@ describe('BookingStore', () => {
     await store.softDeleteByCourse('c1');
     expect(captured.filter).toEqual({ courseId: 'c1', deleted: { $ne: true } });
     expect(captured.update.$set.deleted).toBe(true);
+    expect(captured.update.$set.deletedAt).toBeInstanceOf(Date);
   });
 
   test('deletePendingByCourse borra físicamente los soft bookings', async () => {
