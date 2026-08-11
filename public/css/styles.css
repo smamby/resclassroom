@@ -1543,3 +1543,38 @@ body::before {
         transform: rotate(360deg);
     }
 }
+
+/* ---------- Cursos ---------- */
+.modal-wide { max-width: 760px; width: 95%; }
+.modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem; }
+
+.block-row { border: 1px solid var(--border, #e5e7eb); border-radius: 8px; padding: 0.9rem; margin-bottom: 0.9rem; }
+.block-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.block-title { font-weight: 600; }
+.block-remove { background: transparent; border: 0; color: #b91c1c; font-size: 1.25rem; cursor: pointer; }
+.block-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.block-conflict { color: #b91c1c; font-size: 0.85rem; margin-top: 0.5rem; min-height: 1em; }
+.block-conflict.has-conflict { font-weight: 600; }
+
+.overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); z-index: 200; overflow-y: auto; padding: 1.5rem; }
+.overlay-content { background: var(--bg, #fff); max-width: 860px; margin: 2rem auto; border-radius: 12px; padding: 1.25rem 1.5rem; }
+.overlay-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.overlay-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.overlay-tabs .tab { background: transparent; border: 1px solid var(--border, #e5e7eb); padding: 0.4rem 0.9rem; border-radius: 999px; cursor: pointer; }
+.overlay-tabs .tab.active { background: var(--primary, #4A90D9); color: #fff; border-color: var(--primary, #4A90D9); }
+
+.course-list { display: flex; flex-direction: column; gap: 0.9rem; }
+.course-card { border: 1px solid var(--border, #e5e7eb); border-left-width: 4px; border-radius: 10px; padding: 1rem; }
+.course-card h3 { margin: 0.25rem 0; }
+.course-status { display: inline-block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.15rem 0.5rem; border-radius: 999px; background: #f1f5f9; color: #334155; }
+.course-meta { color: #64748b; font-size: 0.9rem; margin: 0.2rem 0; }
+.course-proposal { white-space: pre-wrap; color: #334155; margin: 0.5rem 0; }
+.course-schedule { list-style: none; padding: 0; margin: 0.4rem 0; }
+.course-schedule li, .course-schedule br + * { color: #334155; }
+.course-actions, .vote-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+
+.menu-badge { background: #ef4444; color: #fff; border-radius: 999px; font-size: 0.7rem; padding: 0.1rem 0.45rem; margin-left: 0.5rem; vertical-align: middle; }
+
+.activity-card-pending { border-style: dashed; opacity: 0.85; }
+.pending-tag { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: #b45309; background: #fef3c7; padding: 0.1rem 0.45rem; border-radius: 999px; margin-bottom: 0.35rem; }
+.empty { color: #94a3b8; padding: 1rem 0; }
