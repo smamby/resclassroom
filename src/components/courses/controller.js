@@ -337,6 +337,10 @@ class CourseController {
       if (course.status !== 'en_votacion') {
         return res.status(400).json({ error: 'La votación ya cerró' });
       }
+      // El cierre es perezoso: si ya venció el plazo, un voto tardío no debe contar.
+      if (course.voteDeadline && Date.now() >= new Date(course.voteDeadline).getTime()) {
+        return res.status(400).json({ error: 'La votación ya cerró' });
+      }
       const { vote, comment } = req.body;
       if (!VOTE_OPTIONS.includes(vote)) {
         return res.status(400).json({ error: 'Voto inválido' });
