@@ -28,16 +28,16 @@ describe('buildMenuItems', () => {
   test('rol desconocido ve solo items base', () => {
     expect(buildMenuItems(['pirata'])).toEqual(['mi-cuenta', 'logout']);
   });
-  test('instructor ve base + mis reservas', () => {
-    expect(buildMenuItems([ROLES.INSTRUCTOR])).toEqual(['mi-cuenta', 'mis-reservas', 'logout']);
+  test('instructor ve base + mis reservas y cursos', () => {
+    expect(buildMenuItems([ROLES.INSTRUCTOR])).toEqual(['mi-cuenta', 'mis-reservas', 'cursos', 'logout']);
   });
-  test('admin ve base + gestion y mis reservas', () => {
-    expect(buildMenuItems([ROLES.ADMIN])).toEqual(['mi-cuenta', 'gestionar-usuarios', 'gestionar-espacios', 'mis-reservas', 'logout']);
+  test('admin ve base + gestion, mis reservas y cursos', () => {
+    expect(buildMenuItems([ROLES.ADMIN])).toEqual(['mi-cuenta', 'gestionar-usuarios', 'gestionar-espacios', 'mis-reservas', 'cursos', 'logout']);
   });
   test('subco ve base + votar y cursos', () => {
     expect(buildMenuItems([ROLES.SUBCO])).toEqual(['mi-cuenta', 'votar', 'cursos', 'logout']);
   });
   test('multi-rol (admin + instructor) sin duplicados', () => {
-    expect(buildMenuItems([ROLES.ADMIN, ROLES.INSTRUCTOR])).toEqual(['mi-cuenta', 'gestionar-usuarios', 'gestionar-espacios', 'mis-reservas', 'logout']);
+    expect(buildMenuItems([ROLES.ADMIN, ROLES.INSTRUCTOR])).toEqual(['mi-cuenta', 'gestionar-usuarios', 'gestionar-espacios', 'mis-reservas', 'cursos', 'logout']);
   });
 });

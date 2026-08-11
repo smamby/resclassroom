@@ -17,8 +17,8 @@
 
   const MENU_CONFIG = {
     base: ['mi-cuenta', 'logout'],
-    [ROLES.ADMIN]: ['gestionar-usuarios', 'gestionar-espacios', 'mis-reservas'],
-    [ROLES.INSTRUCTOR]: ['mis-reservas'],
+    [ROLES.ADMIN]: ['gestionar-usuarios', 'gestionar-espacios', 'mis-reservas', 'cursos'],
+    [ROLES.INSTRUCTOR]: ['mis-reservas', 'cursos'],
     [ROLES.SUBCO]: ['votar', 'cursos']
   };
 
@@ -82,7 +82,10 @@
       const item = MENU_ITEMS[id];
       if (!item) return '';
       const sep = id === 'logout' ? '<li class="menu-separator" role="separator"></li>' : '';
-      return `${sep}<li><button type="button" class="menu-item" data-action="${id}">${item.label}</button></li>`;
+      // El badge de votaciones pendientes lo renderiza app.js vía
+      // ResClassroomVoting.updateVoteBadge(); queda oculto hasta entonces.
+      const badge = id === 'votar' ? '<span class="menu-badge" data-vote-badge hidden></span>' : '';
+      return `${sep}<li><button type="button" class="menu-item" data-action="${id}">${item.label}${badge}</button></li>`;
     }).join('');
     return `
       <button type="button" class="menu-btn" aria-haspopup="true" aria-expanded="false" aria-label="menu de usuario" title="Usuario">${svg}</button>
