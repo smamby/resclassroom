@@ -153,4 +153,19 @@ describe('CourseController', () => {
     await ctrl.submitCourse(makeReq({ id: 'i1', role: [ROLES.INSTRUCTOR] }, {}, { id: 'c1' }), res);
     expect(res.status).toHaveBeenCalledWith(409);
   });
+
+  test('updateCourse en votación: rechaza con 409 si la nueva grilla colisiona', async () => {
+    bookingMocks.findByWorkspaceAll.mockResolvedValue([
+      { _id: 'b1', startDate: '2026-08-04', endDate: '2026-08-04', startTime: '20:00', endTime: '23:00', days: [] }
+    ]);
+    CourseStore.mockImplementation(() => ({
+      findById: jest.fn(async () => ({ ...baseCourse, status: 'en_votacion', voteDeadline: Date.now() + 3600000, votes: [] })),
+      update: jest.fn(async (id, u) => ({ ...baseCourse, ...u, _id: id }))
+    }));
+    ctrl = new CourseController();
+    const res = makeRes();
+    await ctrl.updateCourse(makeReq({ id: 'i1', role: [ROLES.INSTRUCTOR] }, { schedule: baseCourse.schedule }, { id: 'c1' }), res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(bookingMocks.deletePendingByCourse).not.toHaveBeenCalled();
+  });
 });

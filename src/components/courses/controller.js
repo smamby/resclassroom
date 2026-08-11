@@ -243,6 +243,13 @@ class CourseController {
       delete updates.createdAt;
 
       if (course.status === 'en_votacion') {
+        // La nueva grilla no debe pisar otras reservas aunque estemos en votación:
+        // al aprobar se confirman los pending sin re-validar, así que hay que
+        // chequear colisiones acá antes de regenerar los soft bookings.
+        const conflicts = await this._checkConflicts(model, String(course._id));
+        if (conflicts.length > 0) {
+          return res.status(409).json({ error: 'Hay colisiones en la nueva grilla', conflicts });
+        }
         // Editar durante la votación reinicia votos y plazo: la SUBCO re-delibera.
         updates.votes = [];
         updates.voteDeadline = new Date(Date.now() + VOTE_WINDOW_HOURS * 3600 * 1000);
