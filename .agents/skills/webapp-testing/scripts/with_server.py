@@ -17,9 +17,19 @@ Usage:
 import os
 import subprocess
 import socket
+import threading
 import time
 import sys
 import argparse
+
+
+def drain_pipe(stream):
+    # Consume la salida del server. Si no se lee, el pipe (buffer limitado)
+    # se llena con los console.log y el server queda bloqueado en la escritura.
+    while True:
+        line = stream.readline()
+        if not line:
+            break
 
 def is_server_ready(port, timeout=30):
     """Wait for server to be ready by polling the port."""
@@ -74,6 +84,9 @@ def main():
                 stderr=subprocess.PIPE
             )
             server_processes.append(process)
+            # Drenar stdout/stderr en hilos para no saturar el pipe del server
+            threading.Thread(target=drain_pipe, args=(process.stdout,), daemon=True).start()
+            threading.Thread(target=drain_pipe, args=(process.stderr,), daemon=True).start()
 
             # Wait for this server to be ready
             print(f"Waiting for server on port {server['port']}...")

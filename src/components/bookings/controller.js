@@ -117,16 +117,12 @@ class BookingController {
         results = results.filter(b => b.status !== 'pending');
       }
 
-      console.log('results get all bookings', results);
-
       if (req.query.workspaceId) {
         results = results.filter(b => String(b.workspaceId) === String(req.query.workspaceId));
       }
-      console.log('results after filter by workspace', results);
       if (req.query.actividad) {
         results = results.filter(b => b.actividad === req.query.actividad);
       }
-      console.log('results after filter by actividad', results);
       if (req.query.dayOfWeek !== undefined) {
         const dow = parseInt(req.query.dayOfWeek, 10);
         results = results.filter(b => {
@@ -135,7 +131,6 @@ class BookingController {
           return d.getDay() === dow;
         });
       }
-      console.log('results after filter by day of week', results);
       res.status(200).json(results);
     } catch (error) {
       res.status(500).json({ error: error.message });

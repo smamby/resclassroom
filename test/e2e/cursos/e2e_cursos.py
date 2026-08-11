@@ -1,4 +1,4 @@
-import json, os
+import json, os, time, urllib.request
 from playwright.sync_api import sync_playwright
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -13,6 +13,33 @@ def check(name, ok):
     results.append((name, ok))
     print(('PASS' if ok else 'FAIL') + ' - ' + name)
 
+def warm_up(base, budget=180):
+    # El server abre el puerto apenas escucha, pero su primera conexion a Mongo
+    # puede tardar decenas de segundos (cold start de Atlas). Probamos /bookings
+    # hasta que responda 200 antes de abrir el navegador.
+    deadline = time.time() + budget
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(base + '/bookings', timeout=10) as r:
+                if r.status == 200:
+                    return True
+        except Exception:
+            pass
+        time.sleep(3)
+    return False
+
+def wait_calendar(page, budget=60):
+    # Primer arranque del server puede tardar (cold start de Mongo): reintenta
+    # sin recargar hasta que la cadena de fetches inicial resuelva.
+    deadline = time.time() + budget
+    while time.time() < deadline:
+        try:
+            page.wait_for_selector('.calendar-day', timeout=max(1, deadline - time.time()))
+            return True
+        except Exception:
+            continue
+    return False
+
 def login(page, email, password):
     page.click('#btnLogin')
     page.wait_for_selector('#loginForm', timeout=10000)
@@ -20,7 +47,7 @@ def login(page, email, password):
     page.fill('#loginPassword', password)
     page.click('#loginForm button[type="submit"]')
     page.wait_for_selector('#menu:not([hidden])', timeout=15000)
-    page.wait_for_selector('.calendar-day', timeout=15000)
+    wait_calendar(page)
 
 def close_aviso(page):
     btn = page.query_selector('#avisoCloseBtn')
@@ -36,6 +63,9 @@ def open_menu(page, action):
     page.click('.menu-btn')
     page.click('[data-action="%s"]' % action)
 
+if not warm_up(BASE):
+    raise SystemExit('FATAL: el server no respondio /bookings tras el warm-up')
+
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
     page = browser.new_page(viewport={'width': 1280, 'height': 2000})
@@ -43,7 +73,8 @@ with sync_playwright() as p:
     page.on('pageerror', lambda e: errors.append(str(e)))
 
     page.goto(BASE, wait_until='domcontentloaded')
-    page.wait_for_selector('.calendar-day', timeout=15000)
+    if not wait_calendar(page):
+        raise SystemExit('FATAL: el calendario no renderizo en el arranque')
 
     # ---- Instructor: crea borrador ----
     login(page, state['emails']['instructor'], state['password'])
