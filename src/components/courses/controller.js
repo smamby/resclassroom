@@ -325,6 +325,152 @@ class CourseController {
       res.status(400).json({ error: error.message });
     }
   }
+
+  async voteCourse(req, res) {
+    try {
+      const course = await this.store.findById(req.params.id);
+      if (!course) return res.status(404).json({ error: 'Curso no encontrado' });
+      const roles = rolesOf(req.user);
+      if (!roles.includes(ROLES.SUBCO)) {
+        return res.status(403).json({ error: 'Solo miembros de SUBCO pueden votar' });
+      }
+      if (course.status !== 'en_votacion') {
+        return res.status(400).json({ error: 'La votación ya cerró' });
+      }
+      const { vote, comment } = req.body;
+      if (!VOTE_OPTIONS.includes(vote)) {
+        return res.status(400).json({ error: 'Voto inválido' });
+      }
+      // Re-voto idempotente: se reemplaza el voto previo del usuario.
+      const votes = (course.votes || []).filter(v => String(v.userId) !== String(req.user.id));
+      votes.push({ userId: String(req.user.id), vote, comment: comment || '', votedAt: new Date() });
+      await this.store.update(req.params.id, { votes, updatedAt: new Date() });
+      const resolved = await this._resolveState({ ...course, votes });
+      res.status(200).json({ course: resolved });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async withdrawCourse(req, res) {
+    try {
+      const course = await this.store.findById(req.params.id);
+      if (!course) return res.status(404).json({ error: 'Curso no encontrado' });
+      const roles = rolesOf(req.user);
+      if (course.status !== 'en_votacion') {
+        return res.status(400).json({ error: 'Solo se puede retirar un curso en votación' });
+      }
+      if (!roles.includes(ROLES.ADMIN) && String(course.proposedBy) !== String(req.user.id)) {
+        return res.status(403).json({ error: 'Solo el creador puede retirar el curso' });
+      }
+      await this.bookingStore.softDeleteByCourse(String(course._id));
+      const updated = await this.store.update(req.params.id, { status: 'retirado', updatedAt: new Date(), updatedBy: req.user.id });
+      res.status(200).json(updated);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async backToDraft(req, res) {
+    try {
+      const course = await this.store.findById(req.params.id);
+      if (!course) return res.status(404).json({ error: 'Curso no encontrado' });
+      const roles = rolesOf(req.user);
+      if (!['rechazado', 'retirado'].includes(course.status)) {
+        return res.status(400).json({ error: 'Solo un curso rechazado o retirado puede volver a borrador' });
+      }
+      if (!roles.includes(ROLES.ADMIN) && String(course.proposedBy) !== String(req.user.id)) {
+        return res.status(403).json({ error: 'Solo el creador puede volver el curso a borrador' });
+      }
+      await this.bookingStore.deletePendingByCourse(String(course._id));
+      const updated = await this.store.update(req.params.id, {
+        status: 'propuesto', votes: [], voteDeadline: null, updatedAt: new Date(), updatedBy: req.user.id
+      });
+      res.status(200).json(updated);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async cancelCourse(req, res) {
+    try {
+      const course = await this.store.findById(req.params.id);
+      if (!course) return res.status(404).json({ error: 'Curso no encontrado' });
+      const roles = rolesOf(req.user);
+      if (!['publicado', 'en_curso'].includes(course.status)) {
+        return res.status(400).json({ error: 'Solo se puede cancelar un curso publicado o en curso' });
+      }
+      if (!roles.includes(ROLES.ADMIN) && String(course.proposedBy) !== String(req.user.id)) {
+        return res.status(403).json({ error: 'No podés cancelar este curso' });
+      }
+      await this.bookingStore.softDeleteByCourse(String(course._id));
+      const updated = await this.store.update(req.params.id, { status: 'cancelado', updatedAt: new Date(), updatedBy: req.user.id });
+      res.status(200).json(updated);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async deleteCourse(req, res) {
+    try {
+      const course = await this.store.findById(req.params.id);
+      if (!course) return res.status(404).json({ error: 'Curso no encontrado' });
+      const roles = rolesOf(req.user);
+      if (course.status !== 'propuesto') {
+        return res.status(400).json({ error: 'Solo se pueden borrar borradores' });
+      }
+      if (!roles.includes(ROLES.ADMIN) && String(course.proposedBy) !== String(req.user.id)) {
+        return res.status(403).json({ error: 'Solo el creador puede borrar el borrador' });
+      }
+      await this.bookingStore.deletePendingByCourse(String(course._id));
+      await this.store.delete(req.params.id);
+      res.status(200).json({ message: 'Borrador eliminado' });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // Badge de votación pendiente: cantidad de cursos en votación sin el voto del usuario.
+  async pendingCount(req, res) {
+    try {
+      const roles = rolesOf(req.user);
+      if (!roles.includes(ROLES.SUBCO)) {
+        return res.status(403).json({ error: 'Solo SUBCO' });
+      }
+      const all = await this.store.findAll();
+      let count = 0;
+      for (const c of all) {
+        if (c.status === 'en_votacion') {
+          const rc = await this._resolveState(c);
+          if (rc.status === 'en_votacion' && !(rc.votes || []).some(v => String(v.userId) === String(req.user.id))) {
+            count += 1;
+          }
+        }
+      }
+      res.status(200).json({ count });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // Chequeo liviano para los avisos en vivo del borrador (un bloque candidato).
+  async checkConflicts(req, res) {
+    try {
+      const { workspaceId, startDate, endDate, days, startTime, endTime, courseId, blockLabel } = req.query;
+      const dayList = Array.isArray(days) ? days : String(days || '').split(',').filter(Boolean).map(Number);
+      const candidate = {
+        schedule: {
+          startDate,
+          endDate,
+          blocks: [{ label: blockLabel || '', workspaceId, isPublicSpace: false, days: dayList, startTime, endTime }]
+        }
+      };
+      const conflicts = await this._checkConflicts(candidate, courseId || null);
+      res.status(200).json({ conflicts });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  }
 }
 
 module.exports = CourseController;

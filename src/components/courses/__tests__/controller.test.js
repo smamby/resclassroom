@@ -169,3 +169,125 @@ describe('CourseController', () => {
     expect(bookingMocks.deletePendingByCourse).not.toHaveBeenCalled();
   });
 });
+
+describe('CourseController vote/withdraw/cancel', () => {
+  let ctrl;
+  // Mismos mocks compartidos que el describe anterior: al sobreescribir
+  // CourseStore se reconstruye el controller para que use el nuevo store.
+  let bookingMocks;
+  let userMocks;
+  let emailMocks;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    bookingMocks = {
+      findByWorkspaceAll: jest.fn(async () => []),
+      create: jest.fn(async (b) => ({ ...b, _id: 'b1' })),
+      confirmPendingByCourse: jest.fn(async () => 1),
+      softDeleteByCourse: jest.fn(async () => 1),
+      deletePendingByCourse: jest.fn(async () => 1)
+    };
+    BookingStore.mockImplementation(() => bookingMocks);
+    userMocks = {
+      findByRole: jest.fn(async () => [
+        { _id: 's1', email: 's1@mail.com' },
+        { _id: 's2', email: 's2@mail.com' },
+        { _id: 's3', email: 's3@mail.com' },
+        { _id: 's4', email: 's4@mail.com' }
+      ]),
+      findById: jest.fn(async () => ({ _id: 'i1', email: 'i1@mail.com' }))
+    };
+    UserStore.mockImplementation(() => userMocks);
+    emailMocks = {
+      sendVoteRequest: jest.fn(async () => {}),
+      sendApproved: jest.fn(async () => {}),
+      sendRejected: jest.fn(async () => {})
+    };
+    CoursesEmailService.mockImplementation(() => emailMocks);
+    ctrl = new CourseController();
+  });
+
+  function votingCourse() {
+    return { ...baseCourse, status: 'en_votacion', voteDeadline: new Date(Date.now() + 3600 * 1000), votes: [] };
+  }
+
+  test('voteCourse: solo subco', async () => {
+    CourseStore.mockImplementation(() => ({ findById: jest.fn(async () => votingCourse()), update: jest.fn(async () => ({})) }));
+    ctrl = new CourseController();
+    const res = makeRes();
+    await ctrl.voteCourse(makeReq({ id: 'i1', role: [ROLES.INSTRUCTOR] }, { vote: 'positive' }, { id: 'c1' }), res);
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  test('voteCourse: reemplaza el voto previo del usuario', async () => {
+    const existing = votingCourse();
+    existing.votes = [{ userId: 's1', vote: 'negative', comment: '', votedAt: new Date() }];
+    let saved;
+    CourseStore.mockImplementation(() => ({
+      findById: jest.fn(async () => existing),
+      update: jest.fn(async (id, u) => { saved = u; return { ...existing, ...u }; })
+    }));
+    ctrl = new CourseController();
+    const res = makeRes();
+    await ctrl.voteCourse(makeReq({ id: 's1', role: [ROLES.SUBCO] }, { vote: 'positive' }, { id: 'c1' }), res);
+    expect(saved.votes).toHaveLength(1);
+    expect(saved.votes[0].vote).toBe('positive');
+  });
+
+  test('voteCourse: al votar todos se aprueba y se confirman los soft bookings', async () => {
+    const existing = votingCourse();
+    existing.votes = [
+      { userId: 's2', vote: 'positive', comment: '', votedAt: new Date() },
+      { userId: 's3', vote: 'positive', comment: '', votedAt: new Date() },
+      { userId: 's4', vote: 'positive', comment: '', votedAt: new Date() }
+    ];
+    CourseStore.mockImplementation(() => ({ findById: jest.fn(async () => existing), update: jest.fn(async (id, u) => ({ ...existing, ...u })) }));
+    ctrl = new CourseController();
+    const res = makeRes();
+    await ctrl.voteCourse(makeReq({ id: 's1', role: [ROLES.SUBCO] }, { vote: 'positive' }, { id: 'c1' }), res);
+    expect(bookingMocks.confirmPendingByCourse).toHaveBeenCalledWith('c1');
+    expect(emailMocks.sendApproved).toHaveBeenCalled();
+  });
+
+  test('withdrawCourse: solo creador y en votación', async () => {
+    CourseStore.mockImplementation(() => ({ findById: jest.fn(async () => votingCourse()), update: jest.fn(async () => ({})) }));
+    ctrl = new CourseController();
+    const res = makeRes();
+    await ctrl.withdrawCourse(makeReq({ id: 'otro', role: [ROLES.INSTRUCTOR] }, {}, { id: 'c1' }), res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    const res2 = makeRes();
+    await ctrl.withdrawCourse(makeReq({ id: 'i1', role: [ROLES.INSTRUCTOR] }, {}, { id: 'c1' }), res2);
+    expect(bookingMocks.softDeleteByCourse).toHaveBeenCalledWith('c1');
+  });
+
+  test('cancelCourse libera las reservas', async () => {
+    const pub = { ...baseCourse, status: 'publicado' };
+    CourseStore.mockImplementation(() => ({ findById: jest.fn(async () => pub), update: jest.fn(async () => ({})) }));
+    ctrl = new CourseController();
+    const res = makeRes();
+    await ctrl.cancelCourse(makeReq({ id: 'i1', role: [ROLES.INSTRUCTOR] }, {}, { id: 'c1' }), res);
+    expect(bookingMocks.softDeleteByCourse).toHaveBeenCalledWith('c1');
+  });
+
+  test('pendingCount: cuenta votaciones abiertas sin mi voto', async () => {
+    const a = votingCourse();
+    const b = votingCourse();
+    b._id = 'c2';
+    b.votes = [{ userId: 's1', vote: 'positive', comment: '', votedAt: new Date() }];
+    CourseStore.mockImplementation(() => ({ findAll: jest.fn(async () => [a, b]), update: jest.fn(async () => ({})) }));
+    ctrl = new CourseController();
+    const res = makeRes();
+    await ctrl.pendingCount(makeReq({ id: 's1', role: [ROLES.SUBCO] }, {}, {}), res);
+    expect(res.json.mock.calls[0][0]).toEqual({ count: 1 });
+  });
+
+  test('checkConflicts devuelve colisiones', async () => {
+    bookingMocks.findByWorkspaceAll.mockResolvedValue([
+      { _id: 'b1', startDate: '2026-08-04', endDate: '2026-08-04', startTime: '20:00', endTime: '23:00', days: [] }
+    ]);
+    const res = makeRes();
+    await ctrl.checkConflicts(makeReq({ id: 'i1', role: [ROLES.INSTRUCTOR] }, {}, {}, { workspaceId: 'w1', startDate: '2026-08-03', endDate: '2026-08-09', days: '2,4', startTime: '19:00', endTime: '22:00' }), res);
+    const body = res.json.mock.calls[0][0];
+    expect(body.conflicts.length).toBeGreaterThan(0);
+  });
+});
