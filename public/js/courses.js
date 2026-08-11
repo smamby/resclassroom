@@ -346,7 +346,7 @@
     if ((c.status === 'publicado' || c.status === 'en_curso') && (canEdit || isAdmin)) {
       actions.push(`<button class="btn-secondary" onclick="ResClassroomCourses.cancelCourse('${c._id}')">Cancelar</button>`);
     }
-    const scheduleSummary = c.schedule.blocks.map(b =>
+    const scheduleSummary = (c.schedule && c.schedule.blocks || []).map(b =>
       `${b.label ? b.label + ': ' : ''}${b.isPublicSpace ? b.workspaceName || 'Espacio público' : b.workspaceName || ''} ${b.days.map(d => DAY_LABELS[d]).join('/')} ${b.startTime}-${b.endTime}`
     ).join('<br>');
     return `
@@ -356,7 +356,7 @@
           <h3>${escapeHtml(c.title)}</h3>
         </div>
         ${c.type ? `<div class="course-meta">${escapeHtml(c.type)}</div>` : ''}
-        ${c.schedule.startDate ? `<div class="course-meta">${c.schedule.startDate} → ${c.schedule.endDate}</div>` : ''}
+        ${(c.schedule && c.schedule.startDate) ? `<div class="course-meta">${c.schedule.startDate} → ${c.schedule.endDate}</div>` : ''}
         <div class="course-schedule">${scheduleSummary}</div>
         ${actions.length ? `<div class="course-actions">${actions.join(' ')}</div>` : ''}
       </div>`;

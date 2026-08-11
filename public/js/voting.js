@@ -41,14 +41,14 @@
     const hours = Math.floor(remaining / 3600000);
     const minutes = Math.floor((remaining % 3600000) / 60000);
 
-    const schedule = (course.schedule.blocks || []).map(b =>
+    const schedule = ((course.schedule && course.schedule.blocks) || []).map(b =>
       `<li>${b.label ? b.label + ': ' : ''}${b.isPublicSpace ? b.workspaceName || 'Espacio público' : b.workspaceName || ''} — ${b.days.map(d => DAY_LABELS[d]).join('/')} ${b.startTime}-${b.endTime}</li>`
     ).join('');
 
     return `
       <div class="course-card" style="border-left-color: ${course.color || '#999'}">
         <h3>${course.title}</h3>
-        <div class="course-meta">${course.type || ''} · ${course.schedule.startDate} → ${course.schedule.endDate}</div>
+        <div class="course-meta">${course.type || ''} · ${(course.schedule && course.schedule.startDate) || ''} → ${(course.schedule && course.schedule.endDate) || ''}</div>
         ${course.proposal ? `<div class="course-proposal">${course.proposal}</div>` : ''}
         <ul class="course-schedule">${schedule}</ul>
         <div class="course-meta">Votos: ${votedCount}/${(course.votes || []).length} · A favor ${positives} · En contra ${negatives} · Abstención ${abstains}</div>
