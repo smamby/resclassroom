@@ -62,13 +62,15 @@
             <label>Nombre del espacio público</label>
             <input type="text" class="block-public-name" value="${escapeHtml(block.isPublicSpace ? block.workspaceName : '')}" placeholder="ej: Parque">
           </div>
-          <div class="form-group">
-            <label>Hora inicio</label>
-            <input type="time" class="block-start" value="${block.startTime || '19:00'}">
-          </div>
-          <div class="form-group">
-            <label>Hora fin</label>
-            <input type="time" class="block-end" value="${block.endTime || '22:00'}">
+          <div class="form-group-content-time">
+            <div class="form-group">
+              <label>Hora inicio</label>
+              <input type="time" class="block-start" value="${block.startTime || '19:00'}">
+            </div>
+            <div class="form-group">
+              <label>Hora fin</label>
+              <input type="time" class="block-end" value="${block.endTime || '22:00'}">
+            </div>
           </div>
         </div>
         <div class="form-group">
