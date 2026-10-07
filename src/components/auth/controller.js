@@ -12,6 +12,7 @@ const isDeployed = process.env.NODE_ENV === 'production';
 const tokenCookieDevelopment = {
   httpOnly: true,
   sameSite: 'lax',
+  path: '/',
   maxAge: 20 * 60 * 1000
 }
 
@@ -19,7 +20,18 @@ const tokenCookieProduction = {
   httpOnly: true,
   secure: true,
   sameSite: 'lax',
+  path: '/',
   maxAge: 20 * 60 * 1000
+}
+
+function getTokenFromCookies(cookieHeader) {
+  if (!cookieHeader) return null;
+  const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=');
+    acc[key] = value;
+    return acc;
+  }, {});
+  return cookies['tokenAuth'] || null;
 }
 
 class AuthController {
@@ -27,13 +39,63 @@ class AuthController {
       this.store = new UserStore();
     }
 
+  // async logout(req, res) {
+  //   console.log('[AUTH/controller] Logout request for user', req.user ? req.user.id : 'unknown');
+
+  //   try {
+  //     if (req.user && req.user.id) {
+  //       const store = new UserStore();
+  //       await store.incrementTokenVersion(req.user.id);
+  //     }
+  //     // Clear the token cookie on logout
+  //     res.clearCookie('tokenAuth', {
+  //       httpOnly: true,
+  //       sameSite: 'lax',
+  //       path: '/',
+  //   });
+  //     res.status(200).json({ message: 'Logout successful' });
+  //   } catch (err) {
+  //     res.status(500).json({ error: err.message });
+  //   }
+  // }
+
+
+
   async logout(req, res) {
     try {
-      // Clear the token cookie on logout
-      res.clearCookie('tokenAuth');
-      res.status(200).json({ message: 'Logout successful' });
+      // 1. Extraemos el token manualmente del encabezado de cookies
+      const cookieHeader = req.headers && req.headers.cookie;
+      const token = getTokenFromCookies(cookieHeader);
+
+      if (token) {
+        let payload = null;
+
+        // A. Verificar token de forma independiente
+        try {
+          payload = jwt.verify(token, SECRET);
+        } catch (jwtErr) {
+          console.log('[AUTH] Token no válido o expirado al hacer logout:', jwtErr.message);
+        }
+
+        // B. Si el token era válido, incrementar tokenVersion en la DB
+        if (payload && payload.userId) {
+          const store = new UserStore();
+          await store.incrementTokenVersion(payload.userId);
+          console.log(`[AUTH] TokenVersion incrementado con éxito en DB para el usuario: ${payload.userId}`);
+        }
+      }
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('[AUTH] Error interno durante el proceso de logout:', err);
+    } finally {
+      // 2. SIEMPRE borramos la cookie y respondemos 200 OK al cliente
+      res.clearCookie('tokenAuth', {
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'none',
+        secure: process.env.NODE_ENV === 'production' ? true : true, // 'none' requiere secure: true
+        path: '/'
+      });
+
+      return res.status(200).json({ message: 'Logout successful' });
     }
   }
 
@@ -82,7 +144,16 @@ class AuthController {
       const user = new User(userData);
       const created = await this.store.create(user);
       const roles = Array.isArray(created.role) ? created.role : [created.role];
-      const token = sign({ userId: String(created._id), role: roles, sessionIat: Math.floor(Date.now() / 1000), pwdv: user.passwordVersion || 0 }, SECRET, { expiresIn: ACCESS_TTL });
+      const token = sign(
+        {
+          userId: String(created._id),
+          role: roles,
+          sessionIat: Math.floor(Date.now() / 1000),
+          pwdv: user.passwordVersion || 0,
+          tv: user.tokenVersion || 0,
+        },
+        SECRET,
+        { expiresIn: ACCESS_TTL });
       // Send token as HttpOnly cookie
       res.cookie('tokenAuth', token, isDeployed
         ? tokenCookieProduction
@@ -111,7 +182,15 @@ class AuthController {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
       const userRoles = Array.isArray(user.role) ? user.role : [user.role];
-      const token = sign({ userId: String(user._id), role: userRoles, sessionIat: Math.floor(Date.now() / 1000), pwdv: user.passwordVersion || 0 }, SECRET, { expiresIn: ACCESS_TTL });
+      const token = sign(
+        { userId: String(user._id),
+          role: userRoles,
+          sessionIat: Math.floor(Date.now() / 1000),
+          pwdv: user.passwordVersion || 0 ,
+          tv: user.tokenVersion || 0,
+        },
+        SECRET,
+        { expiresIn: ACCESS_TTL });
       res.cookie('tokenAuth', token, isDeployed
         ? tokenCookieProduction
         : tokenCookieDevelopment

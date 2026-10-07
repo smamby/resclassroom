@@ -1,5 +1,6 @@
 const { ObjectId } = require('mongodb');
 const getDb = require('../../db').getDb;
+const UserModel = require('./models/User');
 
 function toObjectId(id) {
   if (!id) return null;
@@ -23,6 +24,19 @@ class UserStore {
       role: data.role,
       createdAt: data.createdAt
     };
+  }
+
+  async incrementTokenVersion(userId) {
+    const db = getDb();
+    const collection = db.collection('users');
+    const _id = toObjectId(userId);
+
+    if (!_id) return null;
+
+    return await collection.updateOne(
+      { _id },
+      { $inc: { tokenVersion: 1 } }
+    );
   }
 
   async findById(id) {
