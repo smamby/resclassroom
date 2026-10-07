@@ -1,11 +1,11 @@
-const { sign } = require('jsonwebtoken');
+const { sign, verify } = require('jsonwebtoken');
 const { authenticate, authenticateAdmin } = require('../authMiddleware');
 const UserStore = require('../../components/user/store');
 const ROLES = require('../../../common/roles');
 
 jest.mock('../../components/user/store');
 
-const SECRET = process.env.JWT_SECRET || 'change-me-please';
+const SECRET = require('../../../common/jwtSecret');
 
 function mockRes() {
   const res = { _status: null, _json: null, _cleared: false };
@@ -128,5 +128,40 @@ describe('authenticate', () => {
     await authenticate(req, res, jest.fn());
     expect(res._status).toBe(401);
     expect(res._cleared).toBe(true);
+  });
+
+  test('returns 401 when tokenVersion (tv) mismatches DB', async () => {
+    // Token emitido antes de un logout: DB tiene tokenVersion más alto
+    UserStore.prototype.findById.mockResolvedValue({ _id: 'u1', passwordVersion: 0, tokenVersion: 1 });
+    const req = cookieFor({ userId: 'u1', role: [ROLES.INSTRUCTOR], sessionIat: Math.floor(Date.now() / 1000), pwdv: 0, tv: 0 });
+    const res = mockRes();
+    await authenticate(req, res, jest.fn());
+    expect(res._status).toBe(401);
+    expect(res._json.error).toBe('Session expired');
+    expect(res._cleared).toBe(true);
+  });
+
+  test('accepts token when tokenVersion matches DB', async () => {
+    UserStore.prototype.findById.mockResolvedValue({ _id: 'u1', passwordVersion: 0, tokenVersion: 2 });
+    const req = cookieFor({ userId: 'u1', role: [ROLES.INSTRUCTOR], sessionIat: Math.floor(Date.now() / 1000), pwdv: 0, tv: 2 });
+    const res = mockRes();
+    const next = jest.fn();
+    await authenticate(req, res, next);
+    expect(next).toHaveBeenCalled();
+    expect(req.user.id).toBe('u1');
+  });
+
+  test('sliding refresh preserves tv claim in the re-signed token', async () => {
+    UserStore.prototype.findById.mockResolvedValue({ _id: 'u1', passwordVersion: 0, tokenVersion: 2 });
+    // expiresIn '1m' < umbral de refresh (5 min) → se re-firma en el request
+    const req = cookieFor({ userId: 'u1', role: [ROLES.INSTRUCTOR], sessionIat: Math.floor(Date.now() / 1000), pwdv: 0, tv: 2 }, '1m');
+    const res = mockRes();
+    const next = jest.fn();
+    await authenticate(req, res, next);
+    expect(next).toHaveBeenCalled();
+    expect(res.cookie).toHaveBeenCalled();
+    const newToken = res.cookie.mock.calls[0][1];
+    const payload = verify(newToken, SECRET);
+    expect(payload.tv).toBe(2);
   });
 });

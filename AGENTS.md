@@ -66,6 +66,8 @@ public/
   email: string,       // Requerido, único, formato válido
   role: string,       // admin | instructor | visitor (default)
   passwordHash: string, // Hash de contraseña (para login)
+  passwordVersion: number, // Versión de contraseña (claim pwdv; al cambiarla mueren las otras sesiones)
+  tokenVersion: number,    // Versión de token (claim tv; al hacer logout mueren las sesiones emitidas antes)
   createdAt: Date
 }
 ```
@@ -196,6 +198,8 @@ public/
 - POST `/users` restringido a admin
 - GET `/users/email/:email` sanitizado (sin passwordHash ni resetPasswordToken)
 - Claim JWT `pwdv` (passwordVersion): cambiar contraseña invalida otras sesiones (el middleware revalida contra la DB)
+- Claim JWT `tv` (tokenVersion): `POST /auth/logout` incrementa `tokenVersion` en la DB del usuario; el middleware revalida `pwdv` y `tv` juntos en `checkPasswordAndTokenVersion`, así un token emitido antes del logout queda inválido aunque no haya expirado (afecta a todas las sesiones del usuario)
+- Secret JWT centralizado en `common/jwtSecret.js`: middleware, controllers y tests comparten el mismo fallback si falta `JWT_SECRET`
 - `findById`/`findAll`/`update` de UserStore sanitizan passwordHash y tokens de reset/borrado (compat driver v6+: `findOneAndUpdate` devuelve el doc directo)
 - Borrado de cuenta con confirmación por email (token 20 min, patrón reset-password); al confirmar se soft-deleten reservas activas (`deleted`/`deletedAt`) y se elimina la cuenta
 - Email inmutable en todo el sistema (username)
@@ -218,6 +222,7 @@ public/
 
 ## Estado Actual
 - Autenticación JWT funcionando (login/register) con sesiones sliding refresh
+- Logout invalida tokens en backend (claim `tv` / tokenVersion): el token anterior no sirve aunque no expire
 - Tope absoluto de sesión: 40 min (sessionIat en segundos, normalización legacy ms)
 - Watchdog frontend: `/auth/me` cada 60 s + visibilitychange para detectar expiración en vivo
 - `handleAuthError` integrado en todos los fetches protegidos (401 → logout + redirect)

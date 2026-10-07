@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const { sign } = jwt;
-const SECRET = process.env.JWT_SECRET || 'change-me-please';
+const SECRET = require('../../../common/jwtSecret');
 const ACCESS_TTL = process.env.JWT_EXPIRES_IN || '20m';
 
 const isDeployed = process.env.NODE_ENV === 'production';
@@ -39,28 +39,6 @@ class AuthController {
       this.store = new UserStore();
     }
 
-  // async logout(req, res) {
-  //   console.log('[AUTH/controller] Logout request for user', req.user ? req.user.id : 'unknown');
-
-  //   try {
-  //     if (req.user && req.user.id) {
-  //       const store = new UserStore();
-  //       await store.incrementTokenVersion(req.user.id);
-  //     }
-  //     // Clear the token cookie on logout
-  //     res.clearCookie('tokenAuth', {
-  //       httpOnly: true,
-  //       sameSite: 'lax',
-  //       path: '/',
-  //   });
-  //     res.status(200).json({ message: 'Logout successful' });
-  //   } catch (err) {
-  //     res.status(500).json({ error: err.message });
-  //   }
-  // }
-
-
-
   async logout(req, res) {
     try {
       // 1. Extraemos el token manualmente del encabezado de cookies
@@ -81,19 +59,16 @@ class AuthController {
         if (payload && payload.userId) {
           const store = new UserStore();
           await store.incrementTokenVersion(payload.userId);
-          console.log(`[AUTH] TokenVersion incrementado con éxito en DB para el usuario: ${payload.userId}`);
         }
       }
     } catch (err) {
       console.error('[AUTH] Error interno durante el proceso de logout:', err);
     } finally {
-      // 2. SIEMPRE borramos la cookie y respondemos 200 OK al cliente
-      res.clearCookie('tokenAuth', {
-        httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'none',
-        secure: process.env.NODE_ENV === 'production' ? true : true, // 'none' requiere secure: true
-        path: '/'
-      });
+      // Se limpia con las mismas opciones con las que se creó (sin maxAge:
+      // Express lo convertiría en expires futuro y re-setearía la cookie
+      // 20 min en vez de borrarla).
+      const { maxAge: _ma, ...clearOpts } = isDeployed ? tokenCookieProduction : tokenCookieDevelopment;
+      res.clearCookie('tokenAuth', clearOpts);
 
       return res.status(200).json({ message: 'Logout successful' });
     }

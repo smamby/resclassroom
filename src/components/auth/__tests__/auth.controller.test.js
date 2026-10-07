@@ -50,7 +50,7 @@ describe('AuthController.me', () => {
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const SECRET = process.env.JWT_SECRET || 'change-me-please';
+const SECRET = require('../../../../common/jwtSecret');
 
 describe('AuthController.login', () => {
   let controller;
@@ -81,5 +81,36 @@ describe('AuthController.login', () => {
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     await controller.login({ body: { email: 'ana@mail.com', password: 'wrong' } }, res);
     expect(res.status).toHaveBeenCalledWith(401);
+  });
+});
+
+describe('AuthController.logout', () => {
+  let controller;
+  beforeEach(() => {
+    controller = new AuthController();
+    jest.clearAllMocks();
+  });
+
+  test('increments tokenVersion from a valid token and clears cookie', async () => {
+    const token = jwt.sign(
+      { userId: 'u9', role: [ROLES.INSTRUCTOR], sessionIat: Math.floor(Date.now() / 1000), pwdv: 0, tv: 0 },
+      SECRET,
+      { expiresIn: '20m' }
+    );
+    const req = { headers: { cookie: `tokenAuth=${token}` } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), clearCookie: jest.fn() };
+    await controller.logout(req, res);
+    expect(UserStore.prototype.incrementTokenVersion).toHaveBeenCalledWith('u9');
+    expect(res.clearCookie).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('does not increment tokenVersion when token is invalid but still clears cookie', async () => {
+    const req = { headers: { cookie: 'tokenAuth=not-a-jwt' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), clearCookie: jest.fn() };
+    await controller.logout(req, res);
+    expect(UserStore.prototype.incrementTokenVersion).not.toHaveBeenCalled();
+    expect(res.clearCookie).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 });

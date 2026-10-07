@@ -122,6 +122,8 @@ Response: 201 Created, {booking}
 - Sesiones con sliding refresh: si al token le quedan menos de 5 min, se renueva automáticamente
 - Tope absoluto de sesión: 40 min, aunque haya actividad. El servidor rechaza con 401 y limpia la cookie
 - Watchdog en frontend: consulta `/auth/me` cada 60 s y al volver a la pestaña para detectar expiración en vivo
+- Logout que invalida en el servidor: `POST /auth/logout` incrementa el `tokenVersion` del usuario; el middleware descarta cualquier token con `tv` desactualizado, así el token anterior deja de ser válido de inmediato aunque no expire
+- Claims `pwdv` (cambio de contraseña) y `tv` (logout) revalidados contra la DB en cada request autenticado
 
 ## Flujo de reservas (alto nivel)
 - Un usuario busca disponibilidad de un workspace

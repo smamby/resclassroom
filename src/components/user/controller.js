@@ -8,7 +8,7 @@ const EmailService = require('../reset-password/emailService');
 const ROLES = require('../../../common/roles');
 
 const { sign } = jwt;
-const SECRET = process.env.JWT_SECRET || 'change-me-please';
+const SECRET = require('../../../common/jwtSecret');
 const ACCESS_TTL = process.env.JWT_EXPIRES_IN || '20m';
 const DELETE_TOKEN_TTL_MS = 20 * 60 * 1000;
 const isDeployed = process.env.NODE_ENV === 'production';
@@ -70,7 +70,7 @@ class UserController {
       // Re-emitir token con el nuevo pwdv: la sesión actual sigue viva, las demás mueren
       const roles = Array.isArray(user.role) ? user.role : [user.role];
       const token = sign(
-        { userId: String(user._id), role: roles, sessionIat: Math.floor(Date.now() / 1000), pwdv: passwordVersion },
+        { userId: String(user._id), role: roles, sessionIat: Math.floor(Date.now() / 1000), pwdv: passwordVersion, tv: user.tokenVersion || 0 },
         SECRET,
         { expiresIn: ACCESS_TTL }
       );

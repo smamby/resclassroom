@@ -2,7 +2,7 @@ const { verify, sign } = require('jsonwebtoken');
 const ROLES = require('../../common/roles');
 const UserStore = require('../components/user/store');
 
-const SECRET = process.env.JWT_SECRET || 'harito ama la playa';
+const SECRET = require('../../common/jwtSecret');
 // TTL del access token (se renueva de forma deslizante mientras haya actividad)
 const ACCESS_TTL = process.env.JWT_EXPIRES_IN || '20m';
 // Tope absoluto de la sesión: aunque haya actividad, la sesión muere a los 40 min
@@ -69,24 +69,9 @@ function verifyAndMaybeRefresh(req, res, token) {
   return payload;
 }
 
-// Valida que el claim pwdv del token coincida con la versión actual de la
-// contraseña del usuario. Si cambió la contraseña, la sesión queda inválida.
-// async function checkPasswordAndTokenVersion(res, payload) {
-//   const store = new UserStore();
-//   const user = await store.findById(payload.userId);
-
-//   const pwdvOk = user && (user.passwordVersion || 0) === (payload.pwdv || 0);
-//   const tokenVersionOk = user && (user.tokenVersion || 0) === (payload.tv || 0);
-
-//   console.log(`[AUTH CHECK] DB tokenVersion: ${dbTv} | JWT tv: ${tokenTv}`);
-
-//   if (!user || !pwdvOk || !tokenVersionOk) {
-//     res.clearCookie('tokenAuth');
-//     res.status(401).json({ error: 'Session expired' });
-//     return false;
-//   }
-//   return true;
-// }
+// Valida que los claims pwdv (versión de contraseña) y tv (versión de token)
+// del token coincidan con la DB. Si cambiaron (logout o cambio de contraseña),
+// los tokens emitidos antes quedan inválidos.
 async function checkPasswordAndTokenVersion(res, payload) {
   const store = new UserStore();
   const user = await store.findById(payload.userId);
@@ -98,8 +83,6 @@ async function checkPasswordAndTokenVersion(res, payload) {
   const pwdvOk = user && (user.passwordVersion || 0) === (payload.pwdv || 0);
   const tokenVersionOk = dbTv === tokenTv;
 
-  console.log(`[AUTH CHECK] DB tokenVersion: ${dbTv} | JWT tv: ${tokenTv}`);
-
   if (!user || !pwdvOk || !tokenVersionOk) {
     res.clearCookie('tokenAuth', { path: '/' });
     res.status(401).json({ error: 'Session expired' });
@@ -109,8 +92,6 @@ async function checkPasswordAndTokenVersion(res, payload) {
 }
 
 async function authenticate(req, res, next) {
-  console.log('authenticate middleware called', req.user ? `user already set: ${req.user.id}` : 'no user set');
-
   try {
     // Skip if user is already set (e.g., by test shim)
     if (req.user) {

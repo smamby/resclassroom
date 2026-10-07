@@ -919,7 +919,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
           await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
         } catch (e) {
-          Console.error('Error during logout request', e);
+          console.error('Error during logout request', e);
         }
         localStorage.setItem('loggedIn', 'false');
         // Clear session and UI state

@@ -1,6 +1,5 @@
 const { ObjectId } = require('mongodb');
 const getDb = require('../../db').getDb;
-const UserModel = require('./models/User');
 
 function toObjectId(id) {
   if (!id) return null;

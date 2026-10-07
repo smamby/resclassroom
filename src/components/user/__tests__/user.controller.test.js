@@ -70,6 +70,8 @@ describe('UserController.createUser', () => {
 });
 
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const SECRET = require('../../../../common/jwtSecret');
 const BookingStore = require('../../bookings/store');
 const EmailService = require('../../reset-password/emailService');
 
@@ -133,7 +135,7 @@ describe('UserController.changeMyPassword', () => {
 
   test('updates hash, increments passwordVersion and re-issues cookie', async () => {
     const hash = bcrypt.hashSync('actual', 10);
-    UserStore.prototype.findByIdFull.mockResolvedValue({ _id: 'u1', passwordHash: hash, role: [ROLES.INSTRUCTOR], passwordVersion: 2 });
+    UserStore.prototype.findByIdFull.mockResolvedValue({ _id: 'u1', passwordHash: hash, role: [ROLES.INSTRUCTOR], passwordVersion: 2, tokenVersion: 1 });
     UserStore.prototype.update.mockResolvedValue({ _id: 'u1', role: [ROLES.INSTRUCTOR], passwordVersion: 3 });
     UserStore.prototype.findById.mockResolvedValue({ _id: 'u1', name: 'Ana', role: [ROLES.INSTRUCTOR], passwordVersion: 3 });
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), cookie: jest.fn() };
@@ -144,6 +146,12 @@ describe('UserController.changeMyPassword', () => {
     expect(updateArg.passwordVersion).toBe(3);
     expect(updateArg.passwordHash).toEqual(expect.any(String));
     expect(res.cookie).toHaveBeenCalledWith('tokenAuth', expect.any(String), expect.any(Object));
+    // El token re-emitido debe conservar tv: si no, una sesión con
+    // tokenVersion ≥ 1 en DB quedaría inválida al instante tras el cambio.
+    const newToken = res.cookie.mock.calls[0][1];
+    const payload = jwt.verify(newToken, SECRET);
+    expect(payload.pwdv).toBe(3);
+    expect(payload.tv).toBe(1);
   });
 });
 
